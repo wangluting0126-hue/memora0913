@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memora - 阿尔茨海默症记忆沉淀助手</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23E8734A'/%3E%3Ctext x='32' y='44' font-size='32' font-weight='bold' text-anchor='middle' fill='white' font-family='Arial'%3EM%3C/text%3E%3C/svg%3E">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+  background: #EDE8E0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+.phone-frame {
+  width: 390px;
+  height: 844px;
+  background: #1a1a1a;
+  border-radius: 44px;
+  padding: 12px;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.3), 0 0 0 2px #333;
+  position: relative;
+  flex-shrink: 0;
+}
+.phone-screen {
+  width: 100%;
+  height: 100%;
+  background: #FAF7F2;
+  border-radius: 34px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.status-bar {
+  height: 44px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 24px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2D2A26;
+  flex-shrink: 0;
+}
+.status-bar .right { display: flex; gap: 5px; align-items: center; }
+.app-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+.app-content::-webkit-scrollbar { display: none; }
+.tab-bar {
+  height: 72px;
+  background: #fff;
+  border-top: 1px solid #F0EBE3;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding-bottom: 8px;
+  flex-shrink: 0;
+}
+.tab-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+.tab-item svg { width: 24px; height: 24px; stroke: #B0A89C; fill: none; stroke-width: 1.8; transition: all 0.2s; }
+.tab-item span { font-size: 10px; color: #B0A89C; font-weight: 500; transition: all 0.2s; }
+.tab-item.active svg { stroke: #E8734A; }
+.tab-item.active span { color: #E8734A; font-weight: 600; }
+.tab-item:active { transform: scale(0.92); }
+
+.page { display: none; padding: 0 16px 20px; }
+.page.active { display: block; animation: fadeIn 0.25s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ===== 通用组件 ===== */
+.card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 12px rgba(139,115,85,0.06);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.card:active { transform: scale(0.98); box-shadow: 0 1px 6px rgba(139,115,85,0.1); }
+.card-title { font-size: 15px; font-weight: 600; color: #2D2A26; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+.card-title .more { font-size: 12px; color: #B0A89C; font-weight: 400; }
+.section-title { font-size: 18px; font-weight: 700; color: #2D2A26; margin: 16px 0 12px; }
+.tag { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+.tag-green { background: #E8F5E9; color: #4CAF50; }
+.tag-orange { background: #FFF3E0; color: #E8734A; }
+.tag-blue { background: #E3F2FD; color: #2196F3; }
+.tag-red { background: #FFEBEE; color: #E53935; }
+.tag-gray { background: #F5F2ED; color: #8B7355; }
+
+/* ===== 首页 ===== */
+.home-header {
+  background: linear-gradient(135deg, #E8734A 0%, #F4A261 100%);
+  margin: 0 -16px 16px;
+  padding: 16px 20px 24px;
+  border-radius: 0 0 24px 24px;
+  color: #fff;
+}
+.home-header .top-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.home-header .elder-info { display: flex; align-items: center; gap: 12px; }
+.avatar {
+  width: 52px; height: 52px; border-radius: 50%;
+  background: linear-gradient(135deg, #FFD180, #FFAB91);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; font-weight: 700; color: #5D4037;
+  border: 2px solid rgba(255,255,255,0.5);
+}
+.elder-name { font-size: 18px; font-weight: 700; }
+.elder-status { font-size: 12px; opacity: 0.9; margin-top: 2px; display: flex; align-items: center; gap: 4px; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: #69F0AE; display: inline-block; }
+.device-icons { display: flex; gap: 8px; }
+.device-icon {
+  width: 32px; height: 32px; border-radius: 10px;
+  background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center;
+}
+.device-icon svg { width: 18px; height: 18px; stroke: #fff; fill: none; stroke-width: 1.8; }
+.weather-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; opacity: 0.9; }
+.quick-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+.quick-btn {
+  background: #fff; border-radius: 14px; padding: 14px 6px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  cursor: pointer; transition: transform 0.15s;
+  box-shadow: 0 2px 10px rgba(139,115,85,0.06);
+}
+.quick-btn:active { transform: scale(0.93); }
+.quick-btn .icon-wrap {
+  width: 40px; height: 40px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+}
+.quick-btn .icon-wrap svg { width: 22px; height: 22px; stroke: #fff; fill: none; stroke-width: 1.8; }
+.quick-btn span { font-size: 11px; color: #5D534A; font-weight: 500; text-align: center; }
+.bg-orange { background: linear-gradient(135deg, #E8734A, #F4A261); }
+.bg-blue { background: linear-gradient(135deg, #42A5F5, #64B5F6); }
+.bg-green { background: linear-gradient(135deg, #66BB6A, #81C784); }
+.bg-purple { background: linear-gradient(135deg, #AB47BC, #CE93D8); }
+
+.status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.status-card {
+  background: #fff; border-radius: 14px; padding: 14px;
+  box-shadow: 0 2px 10px rgba(139,115,85,0.06); cursor: pointer;
+}
+.status-card:active { transform: scale(0.97); }
+.status-card .label { font-size: 12px; color: #8B7355; margin-bottom: 6px; display: flex; align-items: center; gap: 4px; }
+.status-card .value { font-size: 22px; font-weight: 700; color: #2D2A26; }
+.status-card .unit { font-size: 12px; color: #B0A89C; font-weight: 400; margin-left: 2px; }
+.status-card .trend { font-size: 11px; margin-top: 4px; }
+.trend-up { color: #E53935; }
+.trend-down { color: #4CAF50; }
+.trend-normal { color: #8B7355; }
+
+.timeline-item { display: flex; gap: 12px; padding: 8px 0; position: relative; }
+.timeline-item:not(:last-child)::after {
+  content: ''; position: absolute; left: 7px; top: 28px; bottom: -4px;
+  width: 2px; background: #F0EBE3;
+}
+.timeline-dot { width: 16px; height: 16px; border-radius: 50%; background: #E8734A; flex-shrink: 0; margin-top: 2px; border: 3px solid #FFF3E0; }
+.timeline-dot.gray { background: #B0A89C; border-color: #F5F2ED; }
+.timeline-dot.green { background: #66BB6A; border-color: #E8F5E9; }
+.timeline-content { flex: 1; }
+.timeline-time { font-size: 11px; color: #B0A89C; }
+.timeline-text { font-size: 13px; color: #2D2A26; margin-top: 2px; }
+
+.ai-report {
+  background: linear-gradient(135deg, #FFF8F0 0%, #FFF3E0 100%);
+  border: 1px solid #FFE0B2; border-radius: 16px; padding: 16px; margin-bottom: 12px;
+}
+.ai-report .report-title { font-size: 14px; font-weight: 600; color: #E8734A; display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.ai-report p { font-size: 13px; color: #5D534A; line-height: 1.6; }
+.ai-report .suggestion { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #FFE0B2; font-size: 12px; color: #8B7355; }
+
+/* ===== 记忆页 ===== */
+.memory-tabs { display: flex; gap: 8px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 4px; }
+.memory-tabs::-webkit-scrollbar { display: none; }
+.memory-tab {
+  padding: 7px 16px; border-radius: 20px; font-size: 13px; font-weight: 500;
+  background: #fff; color: #8B7355; cursor: pointer; white-space: nowrap;
+  border: 1px solid #F0EBE3; transition: all 0.2s;
+}
+.memory-tab.active { background: #E8734A; color: #fff; border-color: #E8734A; }
+.memory-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.memory-card {
+  background: #fff; border-radius: 14px; overflow: hidden; cursor: pointer;
+  box-shadow: 0 2px 10px rgba(139,115,85,0.06); transition: transform 0.15s;
+}
+.memory-card:active { transform: scale(0.96); }
+.memory-cover {
+  height: 110px; display: flex; align-items: center; justify-content: center;
+  font-size: 36px; position: relative;
+}
+.memory-cover .cover-tag {
+  position: absolute; top: 8px; left: 8px; padding: 2px 8px;
+  border-radius: 10px; font-size: 10px; font-weight: 600; color: #fff;
+}
+.memory-info { padding: 10px; }
+.memory-info .title { font-size: 13px; font-weight: 600; color: #2D2A26; }
+.memory-info .meta { font-size: 11px; color: #B0A89C; margin-top: 3px; }
+.story-book {
+  background: linear-gradient(135deg, #8D6E63 0%, #A1887F 100%);
+  border-radius: 16px; padding: 18px; color: #fff; margin-bottom: 12px;
+  cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+}
+.story-book:active { transform: scale(0.98); }
+.story-book .book-title { font-size: 16px; font-weight: 700; }
+.story-book .book-desc { font-size: 12px; opacity: 0.85; margin-top: 4px; }
+.story-book .book-icon { width: 48px; height: 48px; border-radius: 12px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; }
+.fab {
+  position: absolute; bottom: 90px; right: 20px; width: 52px; height: 52px;
+  border-radius: 50%; background: linear-gradient(135deg, #E8734A, #F4A261);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 6px 20px rgba(232,115,74,0.4); cursor: pointer; z-index: 10;
+  transition: transform 0.2s;
+}
+.fab:active { transform: scale(0.9); }
+.fab svg { width: 26px; height: 26px; stroke: #fff; fill: none; stroke-width: 2.2; }
+
+/* ===== 对话页 ===== */
+.chat-list { margin-bottom: 12px; }
+.chat-item {
+  display: flex; gap: 12px; padding: 14px; background: #fff;
+  border-radius: 14px; margin-bottom: 8px; cursor: pointer;
+  box-shadow: 0 2px 10px rgba(139,115,85,0.06); align-items: center;
+}
+.chat-item:active { transform: scale(0.98); }
+.chat-avatar {
+  width: 48px; height: 48px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; font-weight: 700; color: #fff;
+}
+.chat-body { flex: 1; min-width: 0; }
+.chat-name { font-size: 14px; font-weight: 600; color: #2D2A26; display: flex; justify-content: space-between; }
+.chat-time { font-size: 11px; color: #B0A89C; font-weight: 400; }
+.chat-preview { font-size: 12px; color: #8B7355; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-badge {
+  min-width: 18px; height: 18px; border-radius: 9px; background: #E53935;
+  color: #fff; font-size: 10px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; padding: 0 5px;
+}
+.voice-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.voice-btn {
+  background: #fff; border-radius: 14px; padding: 16px;
+  display: flex; align-items: center; gap: 10px; cursor: pointer;
+  box-shadow: 0 2px 10px rgba(139,115,85,0.06);
+}
+.voice-btn:active { transform: scale(0.97); }
+.voice-btn .v-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.voice-btn .v-icon svg { width: 22px; height: 22px; stroke: #fff; fill: none; stroke-width: 1.8; }
+.voice-btn .v-text .t1 { font-size: 14px; font-weight: 600; color: #2D2A26; }
+.voice-btn .v-text .t2 { font-size: 11px; color: #B0A89C; margin-top: 2px; }
+
+/* ===== 健康页 ===== */
+.health-overview {
+  background: linear-gradient(135deg, #66BB6A 0%, #81C784 100%);
+  border-radius: 16px; padding: 18px; color: #fff; margin-bottom: 14px;
+}
+.health-score { display: flex; justify-content: space-between; align-items: center; }
+.score-num { font-size: 42px; font-weight: 800; }
+.score-label { font-size: 13px; opacity: 0.9; }
+.health-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 14px; }
+.metric { text-align: center; }
+.metric .m-val { font-size: 16px; font-weight: 700; }
+.metric .m-label { font-size: 10px; opacity: 0.8; margin-top: 2px; }
+.chart-placeholder {
+  height: 100px; background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, transparent 100%);
+  border-radius: 10px; margin-top: 12px; display: flex; align-items: flex-end; padding: 10px; gap: 6px;
+}
+.chart-bar { flex: 1; background: rgba(255,255,255,0.5); border-radius: 4px 4px 0 0; }
+.train-item {
+  display: flex; align-items: center; gap: 12px; padding: 12px 0;
+  border-bottom: 1px solid #F5F2ED;
+}
+.train-item:last-child { border-bottom: none; }
+.train-icon {
+  width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.train-icon svg { width: 22px; height: 22px; stroke: #fff; fill: none; stroke-width: 1.8; }
+.train-info { flex: 1; }
+.train-name { font-size: 14px; font-weight: 600; color: #2D2A26; }
+.train-desc { font-size: 11px; color: #B0A89C; margin-top: 2px; }
+.train-status { font-size: 12px; font-weight: 600; }
+
+/* ===== 我的页 ===== */
+.profile-header {
+  display: flex; align-items: center; gap: 14px; padding: 8px 0 18px;
+}
+.profile-avatar {
+  width: 60px; height: 60px; border-radius: 50%;
+  background: linear-gradient(135deg, #E8734A, #F4A261);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; font-weight: 700; color: #fff;
+}
+.profile-info .name { font-size: 18px; font-weight: 700; color: #2D2A26; }
+.profile-info .role { font-size: 12px; color: #8B7355; margin-top: 3px; }
+.settings-group { margin-bottom: 14px; }
+.settings-group .group-title { font-size: 13px; color: #8B7355; margin-bottom: 8px; padding-left: 4px; font-weight: 500; }
+.settings-list { background: #fff; border-radius: 14px; overflow: hidden; box-shadow: 0 2px 10px rgba(139,115,85,0.06); }
+.setting-item {
+  display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+  border-bottom: 1px solid #F5F2ED; cursor: pointer;
+}
+.setting-item:last-child { border-bottom: none; }
+.setting-item:active { background: #FAF7F2; }
+.setting-icon {
+  width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.setting-icon svg { width: 18px; height: 18px; stroke: #fff; fill: none; stroke-width: 1.8; }
+.setting-label { flex: 1; font-size: 14px; color: #2D2A26; }
+.setting-value { font-size: 12px; color: #B0A89C; }
+.setting-arrow { color: #D0C8BC; font-size: 16px; }
+.device-row { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid #F5F2ED; }
+.device-row:last-child { border-bottom: none; }
+.device-row .d-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.device-row .d-icon svg { width: 20px; height: 20px; stroke: #fff; fill: none; stroke-width: 1.8; }
+.device-row .d-info { flex: 1; }
+.device-row .d-name { font-size: 13px; font-weight: 600; color: #2D2A26; }
+.device-row .d-status { font-size: 11px; color: #8B7355; margin-top: 2px; }
+.device-row .d-battery { font-size: 12px; color: #66BB6A; font-weight: 600; }
+
+/* ===== 模态框 ===== */
+.modal-overlay {
+  position: absolute; inset: 0; background: rgba(0,0,0,0.5);
+  display: none; align-items: flex-end; justify-content: center; z-index: 100;
+  border-radius: 34px;
+}
+.modal-overlay.show { display: flex; animation: fadeIn 0.2s; }
+.modal-content {
+  background: #FAF7F2; width: 100%; border-radius: 24px 24px 0 0;
+  padding: 20px 16px 30px; max-height: 80%; overflow-y: auto;
+  animation: slideUp 0.3s ease;
+}
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.modal-handle { width: 40px; height: 4px; background: #D0C8BC; border-radius: 2px; margin: 0 auto 16px; }
+.modal-title { font-size: 18px; font-weight: 700; color: #2D2A26; margin-bottom: 14px; text-align: center; }
+.modal-close { position: absolute; top: 16px; right: 16px; width: 32px; height: 32px; border-radius: 50%; background: #F0EBE3; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; color: #8B7355; }
+
+/* ===== Toast ===== */
+.toast {
+  position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
+  background: rgba(45,42,38,0.9); color: #fff; padding: 10px 20px;
+  border-radius: 20px; font-size: 13px; z-index: 200; opacity: 0;
+  transition: opacity 0.3s; pointer-events: none; white-space: nowrap;
+}
+.toast.show { opacity: 1; }
+
+/* ===== 预警横幅 ===== */
+.alert-banner {
+  background: linear-gradient(135deg, #E53935 0%, #EF5350 100%);
+  border-radius: 14px; padding: 14px; color: #fff; margin-bottom: 12px;
+  display: flex; align-items: center; gap: 12px; cursor: pointer;
+}
+.alert-banner:active { transform: scale(0.98); }
+.alert-icon { width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.alert-icon svg { width: 22px; height: 22px; stroke: #fff; fill: none; stroke-width: 2; }
+.alert-text { flex: 1; }
+.alert-text .a-title { font-size: 14px; font-weight: 700; }
+.alert-text .a-desc { font-size: 11px; opacity: 0.9; margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<div class="phone-frame">
+  <div class="phone-screen">
+    <!-- 状态栏 -->
+    <div class="status-bar">
+      <span>9:41</span>
+      <div class="right">
+        <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx="0.5"/><rect x="4.5" y="5" width="3" height="7" rx="0.5"/><rect x="9" y="2" width="3" height="10" rx="0.5"/><rect x="13.5" y="0" width="2.5" height="12" rx="0.5"/></svg>
+        <svg width="22" height="12" viewBox="0 0 22 12" fill="none" stroke="currentColor" stroke-width="1"><rect x="0.5" y="0.5" width="18" height="11" rx="2.5"/><rect x="2" y="2" width="14" height="8" rx="1" fill="currentColor" stroke="none"/><rect x="19.5" y="3.5" width="2" height="5" rx="1" fill="currentColor" stroke="none"/></svg>
+      </div>
+    </div>
+
+    <div class="app-content" id="appContent">
+
+      <!-- ===== 页面：首页（守护） ===== -->
+      <div class="page active" id="page-home">
+        <div class="home-header">
+          <div class="top-row">
+            <div class="elder-info">
+              <div class="avatar">王</div>
+              <div>
+                <div class="elder-name">王建国 · 爸爸</div>
+                <div class="elder-status"><span class="status-dot"></span>在家 · 活动中</div>
+              </div>
+            </div>
+            <div class="device-icons">
+              <div class="device-icon" title="项链在线"><svg viewBox="0 0 24 24"><path d="M12 2a4 4 0 0 0-4 4v1H7a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-1V6a4 4 0 0 0-4-4z"/></svg></div>
+              <div class="device-icon" title="手环在线"><svg viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="16" rx="3"/><path d="M9 2v2M15 2v2M9 20v2M15 20v2"/></svg></div>
+            </div>
+          </div>
+          <div class="weather-row">
+            <span>深圳 · 晴 28°C</span>
+            <span>空气优 · 适合外出</span>
+          </div>
+        </div>
+
+        <!-- 快捷操作 -->
+        <div class="quick-actions">
+          <div class="quick-btn" onclick="showToast('正在呼叫爸爸...')">
+            <div class="icon-wrap bg-orange"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div>
+            <span>一键呼叫</span>
+          </div>
+          <div class="quick-btn" onclick="showToast('分发任务给家庭成员')">
+            <div class="icon-wrap bg-blue"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+            <span>分发任务</span>
+          </div>
+          <div class="quick-btn" onclick="showToast('远程语音已发送到项链')">
+            <div class="icon-wrap bg-green"><svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg></div>
+            <span>远程语音</span>
+          </div>
+          <div class="quick-btn" onclick="showToast('正在连接家中监控...')">
+            <div class="icon-wrap bg-purple"><svg viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div>
+            <span>查看监控</span>
+          </div>
+        </div>
+
+        <!-- 实时异常检测 -->
+        <div class="alert-banner" onclick="switchTab('health')" style="background:linear-gradient(135deg,#FFF3E0,#FFE0B2);border-radius:14px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;cursor:pointer;">
+          <div style="width:40px;height:40px;border-radius:50%;background:#FFA000;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <div style="flex:1;">
+            <div style="font-size:14px;font-weight:700;color:#E65100;">实时异常检测</div>
+            <div style="font-size:11px;color:#8D6E63;margin-top:2px;">今日动态中2项异常已标红 · 点击查看详情</div>
+          </div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E65100" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+
+        <!-- 状态卡片 -->
+        <div class="status-grid">
+          <div class="status-card" onclick="switchTab('health')">
+            <div class="label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E53935" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>心率</div>
+            <div class="value">72<span class="unit">bpm</span></div>
+            <div class="trend trend-normal">正常范围</div>
+          </div>
+          <div class="status-card" onclick="switchTab('health')">
+            <div class="label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2196F3" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>步数</div>
+            <div class="value">3,248<span class="unit">步</span></div>
+            <div class="trend trend-down">较昨日 +12%</div>
+          </div>
+          <div class="status-card" onclick="switchTab('health')">
+            <div class="label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#66BB6A" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>睡眠</div>
+            <div class="value">6.8<span class="unit">小时</span></div>
+            <div class="trend trend-up">夜醒2次</div>
+          </div>
+          <div class="status-card" onclick="switchTab('health')">
+            <div class="label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#AB47BC" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z"/><path d="M12 6v6l4 2"/></svg>认知训练</div>
+            <div class="value">3/5<span class="unit">项</span></div>
+            <div class="trend trend-normal">正确率 80%</div>
+          </div>
+        </div>
+
+        <!-- 今日动态 -->
+        <div class="card" onclick="showToast('查看完整动态时间线')">
+          <div class="card-title">今日动态 <span class="more">查看全部 ›</span></div>
+          <div class="timeline-item">
+            <div class="timeline-dot green"></div>
+            <div class="timeline-content">
+              <div class="timeline-time">09:30</div>
+              <div class="timeline-text">完成早餐，和AI聊了年轻时的工厂往事</div>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+              <div class="timeline-time">10:15</div>
+              <div class="timeline-text">出门散步，前往人民公园（常去地点）</div>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-dot" style="background:#E53935;"></div>
+            <div class="timeline-content">
+              <div class="timeline-time">11:00 <span style="color:#E53935;font-size:10px;margin-left:4px;">异常</span></div>
+              <div class="timeline-text" style="color:#E53935;">重复询问"小芳是谁"3次，AI已用记忆卡片回答</div>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-dot green"></div>
+            <div class="timeline-content">
+              <div class="timeline-time">12:00</div>
+              <div class="timeline-text">已服用降压药，手环确认</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI日报 -->
+        <div class="ai-report" onclick="showToast('查看完整AI日报')">
+          <div class="report-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            Memora AI · 今日报告
+          </div>
+          <p>爸爸今天状态平稳，上午散步32分钟，情绪较好。重复提问较昨日减少2次，记忆唤起成功率85%。</p>
+          <div class="suggestion">建议：今晚可以推送一张全家福记忆卡片，强化家庭记忆。</div>
+        </div>
+      </div>
+
+      <!-- ===== 页面：记忆 ===== -->
+      <div class="page" id="page-memory">
+        <div class="section-title">记忆库</div>
+        <div class="memory-tabs">
+          <div class="memory-tab active" onclick="switchMemoryTab(this)">时间线</div>
+          <div class="memory-tab" onclick="switchMemoryTab(this)">人物</div>
+          <div class="memory-tab" onclick="switchMemoryTab(this)">主题</div>
+          <div class="memory-tab" onclick="switchMemoryTab(this)">相册</div>
+        </div>
+
+        <!-- 生命故事书 -->
+        <div class="story-book" onclick="openModal('storybook')">
+          <div>
+            <div class="book-title">爸爸的生命故事书</div>
+            <div class="book-desc">已整理 128 段记忆 · 8 个人生阶段</div>
+          </div>
+          <div class="book-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div>
+        </div>
+
+        <div class="card-title" style="margin-bottom:10px;">最近记忆</div>
+        <div class="memory-grid">
+          <div class="memory-card" onclick="openModal('memory1')">
+            <div class="memory-cover" style="background:linear-gradient(135deg,#FFCC80,#FFAB91)"><span class="cover-tag" style="background:#E8734A">1985</span>🏭</div>
+            <div class="memory-info">
+              <div class="title">在机械厂的日子</div>
+              <div class="meta">3张照片 · 1段语音</div>
+            </div>
+          </div>
+          <div class="memory-card" onclick="openModal('memory2')">
+            <div class="memory-cover" style="background:linear-gradient(135deg,#A5D6A7,#81C784)"><span class="cover-tag" style="background:#66BB6A">1995</span>🏖️</div>
+            <div class="memory-info">
+              <div class="title">全家青岛之旅</div>
+              <div class="meta">5张照片 · 2段视频</div>
+            </div>
+          </div>
+          <div class="memory-card" onclick="openModal('memory3')">
+            <div class="memory-cover" style="background:linear-gradient(135deg,#90CAF9,#64B5F6)"><span class="cover-tag" style="background:#42A5F5">2008</span>🎓</div>
+            <div class="memory-info">
+              <div class="title">小芳考上大学</div>
+              <div class="meta">2张照片 · 1段语音</div>
+            </div>
+          </div>
+          <div class="memory-card" onclick="openModal('memory4')">
+            <div class="memory-cover" style="background:linear-gradient(135deg,#CE93D8,#BA68C8)"><span class="cover-tag" style="background:#AB47BC">2023</span>👶</div>
+            <div class="memory-info">
+              <div class="title">孙子小明出生</div>
+              <div class="meta">8张照片 · 3段视频</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" onclick="showToast('查看推送记录')">
+          <div class="card-title">记忆推送记录 <span class="more">全部 ›</span></div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #F5F2ED;">
+            <div><div style="font-size:13px;color:#2D2A26;">全家福 · 2020春节</div><div style="font-size:11px;color:#B0A89C;">昨天 19:30 推送</div></div>
+            <span class="tag tag-green">爸爸笑了</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;">
+            <div><div style="font-size:13px;color:#2D2A26;">老战友合影 · 1978</div><div style="font-size:11px;color:#B0A89C;">3天前 推送</div></div>
+            <span class="tag tag-orange">问了更多</span>
+          </div>
+        </div>
+
+        <div class="fab" onclick="openModal('upload')">
+          <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+        </div>
+      </div>
+
+      <!-- ===== 页面：对话 ===== -->
+      <div class="page" id="page-chat">
+        <div class="section-title">对话</div>
+        <div class="voice-actions">
+          <div class="voice-btn" onclick="showToast('按住说话，发送到项链')">
+            <div class="v-icon bg-orange"><svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg></div>
+            <div class="v-text"><div class="t1">远程语音</div><div class="t2">对项链/音箱说话</div></div>
+          </div>
+          <div class="voice-btn" onclick="switchTab('memory')">
+            <div class="v-icon bg-blue"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>
+            <div class="v-text"><div class="t1">发记忆卡</div><div class="t2">推送照片给爸爸</div></div>
+          </div>
+        </div>
+
+        <div class="chat-list">
+          <div class="chat-item" onclick="openModal('chat1')">
+            <div class="chat-avatar" style="background:linear-gradient(135deg,#FFCC80,#FFAB91)">王</div>
+            <div class="chat-body">
+              <div class="chat-name">王建国（爸爸）<span class="chat-time">刚刚</span></div>
+              <div class="chat-preview">「小芳什么时候来？我想她了」</div>
+            </div>
+            <div class="chat-badge">1</div>
+          </div>
+          <div class="chat-item" onclick="openModal('chat2')">
+            <div class="chat-avatar" style="background:linear-gradient(135deg,#E8734A,#F4A261)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 2a4 4 0 0 0-4 4v1H7a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-1V6a4 4 0 0 0-4-4z"/></svg></div>
+            <div class="chat-body">
+              <div class="chat-name">Memora AI对话摘要<span class="chat-time">今天 11:20</span></div>
+              <div class="chat-preview">爸爸今天和AI聊了12分钟，话题：老工厂、小芳小时候...</div>
+            </div>
+          </div>
+          <div class="chat-item" onclick="showToast('打开家庭群聊')">
+            <div class="chat-avatar" style="background:linear-gradient(135deg,#66BB6A,#81C784)">家</div>
+            <div class="chat-body">
+              <div class="chat-name">一家人<span class="chat-time">昨天 20:15</span></div>
+              <div class="chat-preview">妈妈：爸今天状态怎么样？ 我：挺好的，出去散步了</div>
+            </div>
+          </div>
+          <div class="chat-item" onclick="showToast('查看系统通知')">
+            <div class="chat-avatar" style="background:linear-gradient(135deg,#42A5F5,#64B5F6)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+            <div class="chat-body">
+              <div class="chat-name">系统通知<span class="chat-time">昨天 09:00</span></div>
+              <div class="chat-preview">爸爸已按时服用降压药 ✓</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 页面：健康 ===== -->
+      <div class="page" id="page-health">
+        <div class="section-title">健康与认知</div>
+
+        <div class="health-overview">
+          <div class="health-score">
+            <div>
+              <div class="score-num">82</div>
+              <div class="score-label">今日健康评分</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:14px;font-weight:600;">良好</div>
+              <div style="font-size:11px;opacity:0.8;margin-top:4px;">较昨日 +3</div>
+            </div>
+          </div>
+          <div class="health-metrics">
+            <div class="metric"><div class="m-val">72</div><div class="m-label">心率</div></div>
+            <div class="metric"><div class="m-val">98%</div><div class="m-label">血氧</div></div>
+            <div class="metric"><div class="m-val">6.8h</div><div class="m-label">睡眠</div></div>
+            <div class="metric"><div class="m-val">3248</div><div class="m-label">步数</div></div>
+          </div>
+          <div class="chart-placeholder">
+            <div class="chart-bar" style="height:40%"></div>
+            <div class="chart-bar" style="height:65%"></div>
+            <div class="chart-bar" style="height:55%"></div>
+            <div class="chart-bar" style="height:80%"></div>
+            <div class="chart-bar" style="height:70%"></div>
+            <div class="chart-bar" style="height:90%"></div>
+            <div class="chart-bar active" style="height:60%"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:#B0A89C;margin-top:4px;">
+            <span>周一</span><span>周二</span><span>周三</span><span>周四</span><span>周五</span><span>周六</span><span>今天</span>
+          </div>
+          <div style="font-size:10px;color:#8B7355;margin-top:6px;text-align:center;">近7天健康评分趋势</div>
+        </div>
+
+        <div class="card" onclick="showToast('查看异常检测详情')">
+          <div class="card-title">异常检测 <span class="more">AI实时监测 ›</span></div>
+          <div style="display:flex;gap:8px;margin-bottom:12px;">
+            <div style="flex:1;text-align:center;padding:8px;background:#FFF3E0;border-radius:10px;">
+              <div style="font-size:18px;font-weight:700;color:#E65100;">2</div>
+              <div style="font-size:10px;color:#8B7355;">本周异常</div>
+            </div>
+            <div style="flex:1;text-align:center;padding:8px;background:#E8F5E9;border-radius:10px;">
+              <div style="font-size:18px;font-weight:700;color:#2E7D32;">98%</div>
+              <div style="font-size:10px;color:#8B7355;">监测覆盖</div>
+            </div>
+            <div style="flex:1;text-align:center;padding:8px;background:#E3F2FD;border-radius:10px;">
+              <div style="font-size:18px;font-weight:700;color:#1565C0;">4类</div>
+              <div style="font-size:10px;color:#8B7355;">检测维度</div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;align-items:center;gap:10px;padding:8px;background:#FFF8E1;border-radius:8px;">
+              <div style="width:8px;height:8px;border-radius:50%;background:#FFA000;flex-shrink:0;"></div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:12px;font-weight:600;color:#2D2A26;">重复提问频率上升</div>
+                <div style="font-size:10px;color:#B0A89C;">认知异常 · 今天14:30 · 同一问题问5次</div>
+              </div>
+              <span style="font-size:10px;padding:2px 8px;background:#FFE0B2;color:#E65100;border-radius:4px;flex-shrink:0;">关注</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:8px;background:#FFEBEE;border-radius:8px;">
+              <div style="width:8px;height:8px;border-radius:50%;background:#E53935;flex-shrink:0;"></div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:12px;font-weight:600;color:#2D2A26;">夜间心率偏高</div>
+                <div style="font-size:10px;color:#B0A89C;">健康异常 · 昨晚03:15 · 平均98bpm</div>
+              </div>
+              <span style="font-size:10px;padding:2px 8px;background:#FFCDD2;color:#C62828;border-radius:4px;flex-shrink:0;">预警</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:8px;background:#F5F5F5;border-radius:8px;opacity:0.7;">
+              <div style="width:8px;height:8px;border-radius:50%;background:#9E9E9E;flex-shrink:0;"></div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:12px;font-weight:600;color:#2D2A26;">电子围栏越界</div>
+                <div style="font-size:10px;color:#B0A89C;">安全异常 · 3天前 · 已自动提醒回家</div>
+              </div>
+              <span style="font-size:10px;padding:2px 8px;background:#E0E0E0;color:#616161;border-radius:4px;flex-shrink:0;">已处理</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" onclick="showToast('查看睡眠详情')">
+          <div class="card-title">睡眠详情 <span class="more">本周 ›</span></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+            <div><div style="font-size:20px;font-weight:700;color:#2D2A26;">6小时48分</div><div style="font-size:11px;color:#B0A89C;">昨晚睡眠</div></div>
+            <div style="text-align:right;"><div style="font-size:14px;font-weight:600;color:#E53935;">夜醒2次</div><div style="font-size:11px;color:#B0A89C;">深睡1.5h</div></div>
+          </div>
+          <div style="height:32px;display:flex;border-radius:8px;overflow:hidden;">
+            <div style="flex:2;background:#90CAF9;"></div>
+            <div style="flex:1;background:#42A5F5;"></div>
+            <div style="flex:3;background:#90CAF9;"></div>
+            <div style="flex:0.5;background:#FFAB91;"></div>
+            <div style="flex:1;background:#42A5F5;"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:#B0A89C;margin-top:6px;">
+            <span>23:00 入睡</span><span>浅睡</span><span>深睡</span><span>清醒</span><span>06:48 起床</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">今日认知训练 <span class="more">3/5 完成</span></div>
+          <div class="train-item">
+            <div class="train-icon bg-orange"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+            <div class="train-info"><div class="train-name">家人照片配对</div><div class="train-desc">5道题 · 基于记忆库</div></div>
+            <div class="train-status" style="color:#66BB6A;">已完成</div>
+          </div>
+          <div class="train-item">
+            <div class="train-icon bg-blue"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+            <div class="train-info"><div class="train-name">故事接龙</div><div class="train-desc">AI讲开头，爸爸接</div></div>
+            <div class="train-status" style="color:#66BB6A;">已完成</div>
+          </div>
+          <div class="train-item">
+            <div class="train-icon bg-green"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+            <div class="train-info"><div class="train-name">今天发生了什么</div><div class="train-desc">睡前回顾 · 强化短期记忆</div></div>
+            <div class="train-status" style="color:#66BB6A;">已完成</div>
+          </div>
+          <div class="train-item" onclick="showToast('开始训练：时间排序')">
+            <div class="train-icon bg-purple"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-5"/></svg></div>
+            <div class="train-info"><div class="train-name">事件时间排序</div><div class="train-desc">把记忆按时间排好</div></div>
+            <div class="train-status" style="color:#E8734A;">去完成</div>
+          </div>
+          <div class="train-item" onclick="showToast('开始训练：40Hz音乐疗法')">
+            <div class="train-icon" style="background:linear-gradient(135deg,#FFB74D,#FFA726)"><svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
+            <div class="train-info"><div class="train-name">40Hz老歌疗法</div><div class="train-desc">15分钟 · 个性化歌单</div></div>
+            <div class="train-status" style="color:#E8734A;">去完成</div>
+          </div>
+        </div>
+
+        <div class="card" onclick="showToast('查看认知变化曲线详情')">
+          <div class="card-title">认知变化曲线 <span class="more">6个月 ›</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <div>
+              <div style="font-size:24px;font-weight:700;color:#2D2A26;">MMSE 24分</div>
+              <div style="font-size:12px;color:#8B7355;margin-top:4px;">轻度认知障碍 · 近6月下降2分</div>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <span style="font-size:10px;padding:4px 8px;background:#E8734A;color:#fff;border-radius:4px;">6月</span>
+              <span style="font-size:10px;padding:4px 8px;background:#F0EBE3;color:#8B7355;border-radius:4px;">1年</span>
+            </div>
+          </div>
+          <svg viewBox="0 0 280 120" style="width:100%;height:120px;">
+            <line x1="30" y1="10" x2="270" y2="10" stroke="#F0EBE3" stroke-width="1"/>
+            <line x1="30" y1="40" x2="270" y2="40" stroke="#F0EBE3" stroke-width="1"/>
+            <line x1="30" y1="70" x2="270" y2="70" stroke="#F0EBE3" stroke-width="1"/>
+            <line x1="30" y1="100" x2="270" y2="100" stroke="#F0EBE3" stroke-width="1"/>
+            <text x="5" y="14" font-size="8" fill="#B0A89C">30</text>
+            <text x="5" y="44" font-size="8" fill="#B0A89C">27</text>
+            <text x="5" y="74" font-size="8" fill="#B0A89C">24</text>
+            <text x="5" y="104" font-size="8" fill="#B0A89C">21</text>
+            <polyline points="40,25 80,28 120,35 160,40 200,48 240,55" fill="none" stroke="#E8734A" stroke-width="2"/>
+            <circle cx="40" cy="25" r="3" fill="#E8734A"/>
+            <circle cx="80" cy="28" r="3" fill="#E8734A"/>
+            <circle cx="120" cy="35" r="3" fill="#E8734A"/>
+            <circle cx="160" cy="40" r="3" fill="#E8734A"/>
+            <circle cx="200" cy="48" r="3" fill="#E8734A"/>
+            <circle cx="240" cy="55" r="3" fill="#E8734A"/>
+            <polyline points="40,30 80,35 120,42 160,50 200,58 240,65" fill="none" stroke="#42A5F5" stroke-width="1.5" stroke-dasharray="4,2"/>
+            <polyline points="40,20 80,22 120,28 160,32 200,38 240,42" fill="none" stroke="#66BB6A" stroke-width="1.5" stroke-dasharray="2,2"/>
+            <text x="35" y="115" font-size="8" fill="#B0A89C">4月</text>
+            <text x="75" y="115" font-size="8" fill="#B0A89C">5月</text>
+            <text x="115" y="115" font-size="8" fill="#B0A89C">6月</text>
+            <text x="155" y="115" font-size="8" fill="#B0A89C">7月</text>
+            <text x="195" y="115" font-size="8" fill="#B0A89C">8月</text>
+            <text x="235" y="115" font-size="8" fill="#B0A89C">9月</text>
+          </svg>
+          <div style="display:flex;gap:16px;margin-top:8px;font-size:10px;color:#8B7355;flex-wrap:wrap;">
+            <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:2px;background:#E8734A;"></span>MMSE总分</span>
+            <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:2px;background:#42A5F5;"></span>记忆维度</span>
+            <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:2px;background:#66BB6A;"></span>语言维度</span>
+          </div>
+        </div>
+
+        <div class="card" onclick="showToast('查看安全记录')">
+          <div class="card-title">安全记录 <span class="more">全部 ›</span></div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;">
+            <span style="font-size:13px;color:#2D2A26;">跌倒检测</span><span class="tag tag-green">30天无异常</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;">
+            <span style="font-size:13px;color:#2D2A26;">电子围栏</span><span class="tag tag-green">正常</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;">
+            <span style="font-size:13px;color:#2D2A26;">SOS触发</span><span class="tag tag-gray">未触发</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 页面：我的 ===== -->
+      <div class="page" id="page-me">
+        <div class="profile-header">
+          <div class="profile-avatar">芳</div>
+          <div class="profile-info">
+            <div class="name">王小芳</div>
+            <div class="role">王建国的女儿 · 家庭管理员</div>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <div class="group-title">我的家人</div>
+          <div class="settings-list">
+            <div class="setting-item" onclick="openModal('careRecipient')">
+              <div class="setting-icon bg-orange"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+              <div class="setting-label">被照护人</div>
+              <div class="setting-value">王建国 · 可录语音</div>
+              <span class="setting-arrow">›</span>
+            </div>
+            <div class="setting-item" onclick="openModal('familyMembers')">
+              <div class="setting-icon bg-blue"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+              <div class="setting-label">家庭成员</div>
+              <div class="setting-value">3人 · 可录语音</div>
+              <span class="setting-arrow">›</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <div class="group-title">设备管理</div>
+          <div class="settings-list">
+            <div class="setting-item" onclick="openModal('devices')">
+              <div class="setting-icon bg-orange"><svg viewBox="0 0 24 24"><path d="M12 2a4 4 0 0 0-4 4v1H7a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-1V6a4 4 0 0 0-4-4z"/></svg></div>
+              <div class="setting-label">Memora项链</div>
+              <div class="setting-value">电量 78%</div>
+              <span class="setting-arrow">›</span>
+            </div>
+            <div class="setting-item" onclick="openModal('devices')">
+              <div class="setting-icon bg-green"><svg viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="16" rx="3"/><path d="M9 2v2M15 2v2M9 20v2M15 20v2"/></svg></div>
+              <div class="setting-label">健康手环</div>
+              <div class="setting-value">电量 65%</div>
+              <span class="setting-arrow">›</span>
+            </div>
+            <div class="setting-item" onclick="openModal('devices')">
+              <div class="setting-icon bg-purple"><svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg></div>
+              <div class="setting-label">智能音箱（小度）</div>
+              <div class="setting-value">在线</div>
+              <span class="setting-arrow">›</span>
+            </div>
+            <div class="setting-item" onclick="openModal('devices')">
+              <div class="setting-icon bg-blue"><svg viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div>
+              <div class="setting-label">家用监控</div>
+              <div class="setting-value">在线</div>
+              <span class="setting-arrow">›</span>
+            </div>
+            <div class="setting-item" onclick="showToast('扫描添加新设备')">
+              <div class="setting-icon" style="background:#B0A89C"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+              <div class="setting-label">添加设备</div>
+              <span class="setting-arrow">›</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <div class="group-title">长期习惯沉淀</div>
+          <div style="background:#FFF8E1;border-radius:12px;padding:12px;margin-bottom:12px;">
+            <div style="font-size:11px;color:#8D6E63;line-height:1.6;">记录老人长期行为习惯、用药、病程，沉淀为完整健康档案，可导出给医生参考</div>
+          </div>
+          <div class="settings-list">
+            <div class="setting-item" onclick="showToast('查看行为习惯档案')">
+              <div class="setting-icon bg-orange"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+              <div class="setting-label">行为习惯</div>
+              <div class="setting-value">已记录128天</div>
+              <span class="setting-arrow">›</span>
+            </div>
+            <div class="setting-item" onclick="showToast('查看用药记录')">
+              <div class="setting-icon bg-blue"><svg viewBox="0 0 24 24"><path d="M10.5 20.5a7 7 0 0 1-9.9-9.9l9.9-9.9a7 7 0 0 1 9.9 9.9z"/><path d="M8.5 8.5l7 7"/></svg></div>
+              <div class="setting-label">用药记录</div>
+              <div class="setting-value">3种药 · 依从率92%</div>
+              <span class="setting-arrow">›</span>
+            </div>
+            <div class="setting-item" onclick="showToast('查看病程档案')">
+              <div class="setting-icon" style="background:#E53935"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+              <div class="setting-label">病程档案</div>
+              <div class="setting-value">确诊2年 · 轻度</div>
+              <span class="setting-arrow">›</span>
+            </div>
+            <div class="setting-item" onclick="showToast('导出健康档案给医生')">
+              <div class="setting-icon bg-green"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+              <div class="setting-label">导出健康档案</div>
+              <span class="setting-arrow">›</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <div class="group-title">安全与提醒</div>
+          <div class="settings-list">
+            <div class="setting-item" onclick="showToast('设置电子围栏')">
+              <div class="setting-icon bg-green"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+              <div class="setting-label">电子围栏</div>
+              <div class="setting-value">已设2个区域</div>
+              <span class="setting-arrow">›</span>
+            </div>
+            <div class="setting-item" onclick="showToast('SOS紧急设置')">
+              <div class="setting-icon" style="background:#E53935"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg></div>
+              <div class="setting-label">SOS紧急联系</div>
+              <div class="setting-value">3位联系人</div>
+              <span class="setting-arrow">›</span>
+            </div>
+            <div class="setting-item" onclick="showToast('用药提醒设置')">
+              <div class="setting-icon bg-blue"><svg viewBox="0 0 24 24"><path d="M10.5 20.5a7 7 0 0 1-9.9-9.9l9.9-9.9a7 7 0 0 1 9.9 9.9z"/><path d="M8.5 8.5l7 7"/></svg></div>
+              <div class="setting-label">用药与复诊提醒</div>
+              <div class="setting-value">3种药 · 2次/日</div>
+              <span class="setting-arrow">›</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <div class="group-title">订阅与服务</div>
+          <div class="settings-list">
+            <div class="setting-item" onclick="openModal('subscription')">
+              <div class="setting-icon" style="background:linear-gradient(135deg,#FFD700,#FFA000)"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div>
+              <div class="setting-label">Memora Pro会员</div>
+              <div class="setting-value">有效期至 2027.03</div>
+              <span class="setting-arrow">›</span>
+            </div>
+            <div class="setting-item" onclick="showToast('隐私设置')">
+              <div class="setting-icon" style="background:#78909C"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+              <div class="setting-label">隐私与数据</div>
+              <span class="setting-arrow">›</span>
+            </div>
+            <div class="setting-item" onclick="showToast('帮助中心')">
+              <div class="setting-icon" style="background:#90A4AE"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/></svg></div>
+              <div class="setting-label">帮助与客服</div>
+              <span class="setting-arrow">›</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 底部Tab -->
+    <div class="tab-bar">
+      <div class="tab-item active" onclick="switchTab('home')">
+        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span>守护</span>
+      </div>
+      <div class="tab-item" onclick="switchTab('memory')">
+        <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        <span>记忆</span>
+      </div>
+      <div class="tab-item" onclick="switchTab('health')">
+        <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        <span>健康</span>
+      </div>
+      <div class="tab-item" onclick="switchTab('me')">
+        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span>我的</span>
+      </div>
+    </div>
+
+    <!-- 模态框 -->
+    <div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+      <div class="modal-content" onclick="event.stopPropagation()">
+        <div class="modal-handle"></div>
+        <div class="modal-close" onclick="closeModal()">×</div>
+        <div id="modalBody"></div>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+  </div>
+</div>
+
+<script>
+function switchTab(tab) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + tab).classList.add('active');
+  const tabIndex = {home:0, memory:1, health:2, me:3};
+  document.querySelectorAll('.tab-item')[tabIndex[tab]].classList.add('active');
+  document.getElementById('appContent').scrollTop = 0;
+}
+
+function switchMemoryTab(el) {
+  document.querySelectorAll('.memory-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  showToast('切换到「' + el.textContent + '」视图');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+const modalContents = {
+  memory1: '<div class="modal-title">在机械厂的日子</div><div style="height:160px;background:linear-gradient(135deg,#FFCC80,#FFAB91);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:48px;margin-bottom:14px;">🏭</div><p style="font-size:14px;color:#5D534A;line-height:1.7;margin-bottom:12px;">1985年，爸爸在沈阳第一机械厂工作，是车间的技术骨干。那时候他每天早上6点出门，骑车40分钟到厂里，一干就是一整天。</p><div style="display:flex;gap:8px;margin-bottom:14px;"><span class="tag tag-orange">1985年</span><span class="tag tag-blue">沈阳</span><span class="tag tag-gray">工作</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"><button style="padding:12px;border:none;border-radius:10px;background:#E8734A;color:#fff;font-size:14px;font-weight:600;cursor:pointer;" onclick="showToast(\'已推送给爸爸\')">推送给爸爸</button><button style="padding:12px;border:none;border-radius:10px;background:#F0EBE3;color:#5D534A;font-size:14px;cursor:pointer;" onclick="showToast(\'编辑记忆\')">编辑</button></div>',
+  memory2: '<div class="modal-title">全家青岛之旅</div><div style="height:160px;background:linear-gradient(135deg,#A5D6A7,#81C784);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:48px;margin-bottom:14px;">🏖️</div><p style="font-size:14px;color:#5D534A;line-height:1.7;margin-bottom:12px;">1995年夏天，全家第一次去海边。小芳那年8岁，第一次看到大海，兴奋得在沙滩上跑了一下午。爸爸说那是他最开心的一个夏天。</p><div style="display:flex;gap:8px;margin-bottom:14px;"><span class="tag tag-green">1995年</span><span class="tag tag-blue">青岛</span><span class="tag tag-orange">家庭旅行</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"><button style="padding:12px;border:none;border-radius:10px;background:#E8734A;color:#fff;font-size:14px;font-weight:600;cursor:pointer;" onclick="showToast(\'已推送给爸爸\')">推送给爸爸</button><button style="padding:12px;border:none;border-radius:10px;background:#F0EBE3;color:#5D534A;font-size:14px;cursor:pointer;" onclick="showToast(\'编辑记忆\')">编辑</button></div>',
+  memory3: '<div class="modal-title">小芳考上大学</div><div style="height:160px;background:linear-gradient(135deg,#90CAF9,#64B5F6);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:48px;margin-bottom:14px;">🎓</div><p style="font-size:14px;color:#5D534A;line-height:1.7;margin-bottom:12px;">2008年，小芳考上了深圳大学。爸爸送她到学校，帮她铺好床铺，临走时在宿舍门口站了很久。</p><div style="display:flex;gap:8px;margin-bottom:14px;"><span class="tag tag-blue">2008年</span><span class="tag tag-orange">深圳</span><span class="tag tag-green">重要时刻</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"><button style="padding:12px;border:none;border-radius:10px;background:#E8734A;color:#fff;font-size:14px;font-weight:600;cursor:pointer;" onclick="showToast(\'已推送给爸爸\')">推送给爸爸</button><button style="padding:12px;border:none;border-radius:10px;background:#F0EBE3;color:#5D534A;font-size:14px;cursor:pointer;" onclick="showToast(\'编辑记忆\')">编辑</button></div>',
+  memory4: '<div class="modal-title">孙子小明出生</div><div style="height:160px;background:linear-gradient(135deg,#CE93D8,#BA68C8);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:48px;margin-bottom:14px;">👶</div><p style="font-size:14px;color:#5D534A;line-height:1.7;margin-bottom:12px;">2023年，小明出生了。爸爸第一次抱孙子的时候，手都在抖。他说，这是他这辈子最骄傲的时刻。</p><div style="display:flex;gap:8px;margin-bottom:14px;"><span class="tag" style="background:#F3E5F5;color:#8E24AA;">2023年</span><span class="tag tag-orange">深圳</span><span class="tag tag-green">家庭</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"><button style="padding:12px;border:none;border-radius:10px;background:#E8734A;color:#fff;font-size:14px;font-weight:600;cursor:pointer;" onclick="showToast(\'已推送给爸爸\')">推送给爸爸</button><button style="padding:12px;border:none;border-radius:10px;background:#F0EBE3;color:#5D534A;font-size:14px;cursor:pointer;" onclick="showToast(\'编辑记忆\')">编辑</button></div>',
+  storybook: '<div class="modal-title">爸爸的生命故事书</div><div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;"><div style="display:flex;gap:12px;align-items:center;padding:12px;background:#fff;border-radius:12px;"><div style="width:36px;height:36px;border-radius:10px;background:#FFCC80;display:flex;align-items:center;justify-content:center;font-size:16px;">👶</div><div><div style="font-size:14px;font-weight:600;">童年 · 1950-1965</div><div style="font-size:11px;color:#B0A89C;">12段记忆</div></div></div><div style="display:flex;gap:12px;align-items:center;padding:12px;background:#fff;border-radius:12px;"><div style="width:36px;height:36px;border-radius:10px;background:#FFAB91;display:flex;align-items:center;justify-content:center;font-size:16px;">🏭</div><div><div style="font-size:14px;font-weight:600;">青年 · 1965-1985</div><div style="font-size:11px;color:#B0A89C;">18段记忆</div></div></div><div style="display:flex;gap:12px;align-items:center;padding:12px;background:#fff;border-radius:12px;"><div style="width:36px;height:36px;border-radius:10px;background:#A5D6A7;display:flex;align-items:center;justify-content:center;font-size:16px;">👨‍👩‍👧</div><div><div style="font-size:14px;font-weight:600;">成家 · 1985-2000</div><div style="font-size:11px;color:#B0A89C;">32段记忆</div></div></div><div style="display:flex;gap:12px;align-items:center;padding:12px;background:#fff;border-radius:12px;"><div style="width:36px;height:36px;border-radius:10px;background:#90CAF9;display:flex;align-items:center;justify-content:center;font-size:16px;">🎓</div><div><div style="font-size:14px;font-weight:600;">中年 · 2000-2015</div><div style="font-size:11px;color:#B0A89C;">28段记忆</div></div></div><div style="display:flex;gap:12px;align-items:center;padding:12px;background:#fff;border-radius:12px;"><div style="width:36px;height:36px;border-radius:10px;background:#CE93D8;display:flex;align-items:center;justify-content:center;font-size:16px;">👶</div><div><div style="font-size:14px;font-weight:600;">退休 · 2015-至今</div><div style="font-size:11px;color:#B0A89C;">38段记忆</div></div></div></div><button style="width:100%;padding:14px;border:none;border-radius:12px;background:#8D6E63;color:#fff;font-size:14px;font-weight:600;cursor:pointer;" onclick="showToast(\'正在生成实体故事书...\')">打印实体故事书（¥99）</button>',
+  upload: '<div class="modal-title">上传记忆</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;"><div style="padding:20px;background:#fff;border-radius:14px;text-align:center;cursor:pointer;" onclick="showToast(\'从相册选择照片\')"><div style="font-size:28px;margin-bottom:8px;">🖼️</div><div style="font-size:13px;font-weight:600;">照片/视频</div></div><div style="padding:20px;background:#fff;border-radius:14px;text-align:center;cursor:pointer;" onclick="showToast(\'开始录音\')"><div style="font-size:28px;margin-bottom:8px;">🎙️</div><div style="font-size:13px;font-weight:600;">录制语音</div></div><div style="padding:20px;background:#fff;border-radius:14px;text-align:center;cursor:pointer;" onclick="showToast(\'选择过往通话录音\')"><div style="font-size:28px;margin-bottom:8px;">💬</div><div style="font-size:13px;font-weight:600;">对话记录</div></div><div style="padding:20px;background:#fff;border-radius:14px;text-align:center;cursor:pointer;" onclick="showToast(\'从百度网盘导入\')"><div style="font-size:28px;margin-bottom:8px;">☁️</div><div style="font-size:13px;font-weight:600;">网盘导入</div></div></div><div style="background:#FFF8E1;border-radius:12px;padding:12px;margin-bottom:16px;"><div style="font-size:12px;font-weight:600;color:#E65100;margin-bottom:8px;">支持多角色语音录入</div><div style="display:flex;flex-wrap:wrap;gap:6px;"><span style="font-size:11px;padding:4px 10px;background:#FFE0B2;color:#E65100;border-radius:12px;cursor:pointer;" onclick="showToast(\'选择角色：儿子\')">儿子</span><span style="font-size:11px;padding:4px 10px;background:#FFE0B2;color:#E65100;border-radius:12px;cursor:pointer;" onclick="showToast(\'选择角色：女儿\')">女儿</span><span style="font-size:11px;padding:4px 10px;background:#FFE0B2;color:#E65100;border-radius:12px;cursor:pointer;" onclick="showToast(\'选择角色：老伴\')">老伴</span><span style="font-size:11px;padding:4px 10px;background:#FFE0B2;color:#E65100;border-radius:12px;cursor:pointer;" onclick="showToast(\'选择角色：密友\')">密友</span><span style="font-size:11px;padding:4px 10px;background:#FFE0B2;color:#E65100;border-radius:12px;cursor:pointer;" onclick="showToast(\'自定义角色\')">+自定义</span></div><div style="font-size:11px;color:#8D6E63;margin-top:8px;line-height:1.5;">不同角色语音用于AI语音陪伴时调用家人声音讲故事</div></div><p style="font-size:12px;color:#8B7355;text-align:center;line-height:1.6;">上传后AI会自动识别、打标签、整理成记忆卡片<br>可选择记忆库中过往语音通话的所有录音</p>',
+  chat1: '<div class="modal-title">与爸爸的通话</div><div style="background:#fff;border-radius:14px;padding:16px;margin-bottom:14px;"><div style="text-align:center;font-size:12px;color:#B0A89C;margin-bottom:12px;">今天 14:30 · 语音通话 2分18秒</div><div style="background:#F5F2ED;padding:12px;border-radius:12px;margin-bottom:10px;max-width:80%;"><div style="font-size:13px;color:#2D2A26;">小芳什么时候来？我想她了</div></div><div style="background:#E8734A;padding:12px;border-radius:12px;margin-bottom:10px;max-width:80%;margin-left:auto;color:#fff;"><div style="font-size:13px;">爸，我这周六就回去看您，给您带了您爱吃的点心</div></div><div style="background:#F5F2ED;padding:12px;border-radius:12px;max-width:80%;"><div style="font-size:13px;color:#2D2A26;">好...好，那我等你</div></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"><button style="padding:12px;border:none;border-radius:10px;background:#E8734A;color:#fff;font-size:14px;font-weight:600;cursor:pointer;" onclick="showToast(\'正在呼叫爸爸...\')">回拨</button><button style="padding:12px;border:none;border-radius:10px;background:#F0EBE3;color:#5D534A;font-size:14px;cursor:pointer;" onclick="showToast(\'保存为记忆\')">保存为记忆</button></div>',
+  chat2: '<div class="modal-title">Memora AI对话摘要</div><div style="background:#FFF8F0;border:1px solid #FFE0B2;border-radius:14px;padding:14px;margin-bottom:14px;"><div style="font-size:13px;color:#5D534A;line-height:1.8;"><strong style="color:#E8734A;">今天 10:15-10:27</strong><br>爸爸主动和AI聊起了在沈阳机械厂的日子，讲了当年车间的故事，提到了老战友"老李"。<br><br><strong style="color:#E8734A;">情绪分析：</strong>开心、健谈<br><strong style="color:#E8734A;">记忆提取：</strong>成功唤起3段远期记忆<br><strong style="color:#E8734A;">建议：</strong>可以联系"老李"的家人，安排一次视频通话</div></div><button style="width:100%;padding:12px;border:none;border-radius:10px;background:#F0EBE3;color:#5D534A;font-size:14px;cursor:pointer;" onclick="showToast(\'播放原始录音\')">播放原始录音（12分钟）</button>',
+  devices: '<div class="modal-title">设备管理</div><div class="device-row"><div class="d-icon bg-orange"><svg viewBox="0 0 24 24"><path d="M12 2a4 4 0 0 0-4 4v1H7a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-1V6a4 4 0 0 0-4-4z"/></svg></div><div class="d-info"><div class="d-name">Memora项链 Pro</div><div class="d-status">固件 v2.3.1 · 信号良好</div></div><div class="d-battery">78%</div></div><div class="device-row"><div class="d-icon bg-green"><svg viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="16" rx="3"/></svg></div><div class="d-info"><div class="d-name">健康手环</div><div class="d-status">心率监测中 · 久坐提醒开</div></div><div class="d-battery">65%</div></div><div class="device-row"><div class="d-icon bg-purple"><svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/></svg></div><div class="d-info"><div class="d-name">小度智能音箱</div><div class="d-status">在家时自动联动 · 语音播报</div></div><div class="d-battery" style="color:#4CAF50;">在线</div></div><div class="device-row"><div class="d-icon bg-blue"><svg viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div><div class="d-info"><div class="d-name">家用监控</div><div class="d-status">客厅 · 1080P · 夜视</div></div><div class="d-battery" style="color:#4CAF50;">在线</div></div>',
+  subscription: '<div class="modal-title">Memora Pro会员</div><div style="background:linear-gradient(135deg,#FFD700,#FFA000);border-radius:16px;padding:20px;color:#fff;margin-bottom:16px;text-align:center;"><div style="font-size:32px;margin-bottom:8px;">👑</div><div style="font-size:18px;font-weight:700;">Memora Pro</div><div style="font-size:12px;opacity:0.9;margin-top:4px;">有效期至 2027年3月15日</div></div><div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;"><div style="display:flex;gap:10px;align-items:center;font-size:13px;color:#5D534A;"><span style="color:#66BB6A;">✓</span>无限记忆存储空间</div><div style="display:flex;gap:10px;align-items:center;font-size:13px;color:#5D534A;"><span style="color:#66BB6A;">✓</span>AI怀旧对话（无限次）</div><div style="display:flex;gap:10px;align-items:center;font-size:13px;color:#5D534A;"><span style="color:#66BB6A;">✓</span>个性化认知训练</div><div style="display:flex;gap:10px;align-items:center;font-size:13px;color:#5D534A;"><span style="color:#66BB6A;">✓</span>每日AI状态报告</div><div style="display:flex;gap:10px;align-items:center;font-size:13px;color:#5D534A;"><span style="color:#66BB6A;">✓</span>认知趋势导出（给医生）</div><div style="display:flex;gap:10px;align-items:center;font-size:13px;color:#5D534A;"><span style="color:#66BB6A;">✓</span>多设备联动（项链+手环+音箱+监控）</div></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;"><div style="padding:12px;border:2px solid #E8734A;border-radius:12px;text-align:center;"><div style="font-size:16px;font-weight:700;color:#E8734A;">¥29</div><div style="font-size:11px;color:#8B7355;">/月</div></div><div style="padding:12px;border:2px solid #F0EBE3;border-radius:12px;text-align:center;"><div style="font-size:16px;font-weight:700;color:#2D2A26;">¥299</div><div style="font-size:11px;color:#8B7355;">/年</div></div><div style="padding:12px;border:2px solid #F0EBE3;border-radius:12px;text-align:center;"><div style="font-size:16px;font-weight:700;color:#2D2A26;">¥499</div><div style="font-size:11px;color:#8B7355;">/2年</div></div></div>',
+  careRecipient: '<div class="modal-title">被照护人档案</div><div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;padding:14px;background:#FFF8F0;border-radius:14px;"><div style="width:56px;height:56px;border-radius:50%;background:#E8734A;color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;">王</div><div><div style="font-size:18px;font-weight:700;color:#2D2A26;">王建国</div><div style="font-size:12px;color:#8B7355;margin-top:2px;">78岁 · 男 · 阿尔茨海默症轻度</div><div style="font-size:11px;color:#B0A89C;margin-top:2px;">确诊时间：2024年3月</div></div></div><div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;"><div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#fff;border-radius:10px;"><span style="font-size:13px;color:#5D534A;">基础信息</span><span style="font-size:12px;color:#E8734A;cursor:pointer;" onclick="showToast(\'编辑基础信息\')">编辑 ›</span></div><div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#fff;border-radius:10px;"><span style="font-size:13px;color:#5D534A;">病史与用药</span><span style="font-size:12px;color:#E8734A;cursor:pointer;" onclick="showToast(\'编辑病史\')">编辑 ›</span></div><div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#FFF8E1;border-radius:10px;"><span style="font-size:13px;color:#5D534A;">录入本人语音</span><span style="font-size:12px;color:#E65100;cursor:pointer;" onclick="showToast(\'开始录制老人语音\')">去录制 ›</span></div></div><div style="background:#E8F5E9;border-radius:10px;padding:10px;font-size:11px;color:#2E7D32;line-height:1.6;">录入的语音用于AI语音陪伴时还原老人熟悉的对话方式，也可用于记忆唤起时的声音识别</div>',
+  familyMembers: '<div class="modal-title">家庭成员</div><div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;"><div style="display:flex;align-items:center;gap:12px;padding:12px;background:#fff;border-radius:12px;"><div style="width:40px;height:40px;border-radius:50%;background:#E8734A;color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;">芳</div><div style="flex:1;"><div style="font-size:14px;font-weight:600;color:#2D2A26;">王小芳 <span style="font-size:10px;background:#FFE0B2;color:#E65100;padding:2px 6px;border-radius:4px;margin-left:6px;">管理员</span></div><div style="font-size:11px;color:#B0A89C;">女儿 · 语音已录入</div></div><span style="font-size:12px;color:#4CAF50;">已激活</span></div><div style="display:flex;align-items:center;gap:12px;padding:12px;background:#fff;border-radius:12px;"><div style="width:40px;height:40px;border-radius:50%;background:#42A5F5;color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;">强</div><div style="flex:1;"><div style="font-size:14px;font-weight:600;color:#2D2A26;">王志强</div><div style="font-size:11px;color:#B0A89C;">儿子 · 语音未录入</div></div><span style="font-size:12px;color:#FFA000;cursor:pointer;" onclick="showToast(\'邀请儿子录入语音\')">去录入 ›</span></div><div style="display:flex;align-items:center;gap:12px;padding:12px;background:#fff;border-radius:12px;"><div style="width:40px;height:40px;border-radius:50%;background:#66BB6A;color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;">秀</div><div style="flex:1;"><div style="font-size:14px;font-weight:600;color:#2D2A26;">李秀英</div><div style="font-size:11px;color:#B0A89C;">老伴 · 语音已录入</div></div><span style="font-size:12px;color:#4CAF50;">已激活</span></div></div><button style="width:100%;padding:12px;border:2px dashed #E8734A;border-radius:12px;background:transparent;color:#E8734A;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:12px;" onclick="showToast(\'邀请新家庭成员\')">+ 邀请家庭成员</button><div style="background:#E3F2FD;border-radius:10px;padding:10px;font-size:11px;color:#1565C0;line-height:1.6;">每位家人录入的语音可用于AI语音陪伴时调用对应家人声音讲故事、唤起记忆</div>'
+};
+
+function openModal(key) {
+  const overlay = document.getElementById('modalOverlay');
+  const body = document.getElementById('modalBody');
+  body.innerHTML = modalContents[key] || '<p style="text-align:center;color:#8B7355;">功能开发中</p>';
+  overlay.classList.add('show');
+}
+
+function closeModal(e) {
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+</script>
+</body>
+</html>
