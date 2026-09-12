@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memora - AI记忆陪伴助手</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2326A69A'/%3E%3Ctext x='32' y='44' font-size='32' font-weight='bold' text-anchor='middle' fill='white' font-family='Arial'%3EM%3C/text%3E%3C/svg%3E">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+  background: #E0F2F1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+.phone-frame {
+  width: 390px;
+  height: 844px;
+  background: #1a1a1a;
+  border-radius: 44px;
+  padding: 12px;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.3), 0 0 0 2px #333;
+  position: relative;
+  flex-shrink: 0;
+}
+.phone-screen {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(180deg, #F0F9F8 0%, #D4ECEA 40%, #B2DFDB 100%);
+  border-radius: 34px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 状态栏 */
+.status-bar {
+  height: 44px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 24px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #263238;
+  flex-shrink: 0;
+  z-index: 10;
+}
+.status-bar .right { display: flex; gap: 5px; align-items: center; }
+
+.app-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+.app-content::-webkit-scrollbar { display: none; }
+
+/* ===== 通用组件 ===== */
+.glass-card {
+  background: rgba(255,255,255,0.5);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-radius: 24px;
+  padding: 16px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(255,255,255,0.65);
+  box-shadow: 0 8px 32px rgba(38,166,154,0.06);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.glass-card:active { transform: scale(0.98); }
+.card-title { font-size: 15px; font-weight: 600; color: #263238; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+.card-title .more { font-size: 12px; color: #78909C; font-weight: 400; }
+.section-title { font-size: 17px; font-weight: 700; color: #263238; margin: 16px 0 12px; }
+.tag { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+.tag-green { background: #E8F5E9; color: #43A047; }
+.tag-orange { background: #FFF3E0; color: #FB8C00; }
+.tag-blue { background: #E3F2FD; color: #1E88E5; }
+.tag-red { background: #FFEBEE; color: #E53935; }
+.tag-gray { background: #ECEFF1; color: #78909C; }
+.tag-teal { background: #E0F2F1; color: #00897B; }
+
+/* 透明圆角按钮 */
+.pill-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 18px; border-radius: 20px;
+  background: rgba(255,255,255,0.6);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.8);
+  font-size: 13px; font-weight: 500; color: #263238;
+  cursor: pointer; transition: all 0.15s;
+}
+.pill-btn:active { background: rgba(255,255,255,0.9); transform: scale(0.96); }
+.pill-btn.primary { background: linear-gradient(135deg, #26A69A, #00897B); color: #fff; border: none; }
+
+/* ===== AI聊天首页 ===== */
+.chat-home {
+  height: 100%; display: flex; flex-direction: column;
+  padding: 0 16px;
+}
+.chat-home-top {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0 12px;
+  flex-shrink: 0;
+}
+.top-icon-btn {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: rgba(255,255,255,0.6);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.8);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.15s;
+}
+.top-icon-btn:active { transform: scale(0.92); background: rgba(255,255,255,0.9); }
+.top-icon-btn svg { width: 20px; height: 20px; stroke: #263238; fill: none; stroke-width: 1.8; }
+
+/* 对话区域 */
+.chat-messages {
+  flex: 1; overflow-y: auto; padding: 8px 0 12px;
+  -webkit-overflow-scrolling: touch;
+}
+.chat-messages::-webkit-scrollbar { display: none; }
+.msg-row {
+  display: flex; gap: 10px; margin-bottom: 14px;
+  align-items: flex-start;
+}
+.msg-row.user { flex-direction: row-reverse; }
+.msg-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  flex-shrink: 0; overflow: hidden;
+  border: 2px solid rgba(255,255,255,0.8);
+  box-shadow: 0 2px 8px rgba(38,166,154,0.15);
+}
+.msg-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.msg-avatar.user-avatar {
+  background: linear-gradient(135deg, #26A69A, #00897B);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 14px; font-weight: 700; border: none;
+}
+.msg-bubble {
+  max-width: 85%; padding: 8px 12px;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.9);
+  font-size: 13px; color: #37474F; line-height: 1.6;
+  box-shadow: 0 2px 12px rgba(38,166,154,0.06);
+}
+.msg-row.bear .msg-bubble { border-top-left-radius: 6px; }
+.msg-row.user .msg-bubble {
+  background: linear-gradient(135deg, #26A69A, #00897B);
+  color: #fff; border: none; border-top-right-radius: 6px;
+}
+.msg-time {
+  font-size: 10px; color: #90A4AE; margin-top: 4px;
+  text-align: center;
+}
+
+/* 打字指示器 */
+.typing-dots { display: flex; gap: 4px; padding: 4px 0; }
+.typing-dots span {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #B0BEC5; animation: typingBounce 1.4s infinite;
+}
+.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+  30% { transform: translateY(-5px); opacity: 1; }
+}
+
+/* Hint卡片 */
+.hint-card {
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(10px);
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.9);
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 2px 12px rgba(38,166,154,0.06);
+}
+.hint-card .hint-title {
+  font-size: 12px; font-weight: 600; color: #00897B;
+  margin-bottom: 10px; display: flex; align-items: center; gap: 6px;
+}
+.hint-list { display: flex; flex-direction: column; gap: 8px; }
+.hint-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; background: rgba(38,166,154,0.06);
+  border-radius: 10px; font-size: 12px; color: #37474F;
+  cursor: pointer; transition: all 0.15s;
+}
+.hint-item:active { background: rgba(38,166,154,0.12); transform: scale(0.98); }
+.hint-item .hint-num {
+  width: 20px; height: 20px; border-radius: 50%;
+  background: linear-gradient(135deg, #26A69A, #00897B);
+  color: #fff; font-size: 10px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+/* 功能胶囊行 */
+.func-chips {
+  display: flex; gap: 8px; overflow-x: auto;
+  padding: 4px 0 10px; flex-shrink: 0;
+  -webkit-overflow-scrolling: touch;
+}
+.func-chips::-webkit-scrollbar { display: none; }
+.func-chip {
+  display: flex; align-items: center; gap: 5px;
+  padding: 7px 14px; border-radius: 16px;
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.85);
+  font-size: 11px; font-weight: 500; color: #37474F;
+  cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  flex-shrink: 0;
+}
+.func-chip:active { background: rgba(255,255,255,0.95); transform: scale(0.96); }
+.func-chip svg { width: 13px; height: 13px; color: #00897B; flex-shrink: 0; }
+
+/* 底部输入框 */
+.chat-input-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px;
+  background: rgba(255,255,255,0.75);
+  backdrop-filter: blur(20px);
+  border-radius: 24px;
+  border: 1px solid rgba(255,255,255,0.8);
+  margin-bottom: 20px;
+  box-shadow: 0 4px 20px rgba(38,166,154,0.1);
+}
+.chat-input-bar input {
+  flex: 1; border: none; background: transparent;
+  font-size: 14px; color: #263238; outline: none;
+  font-family: inherit;
+}
+.chat-input-bar input::placeholder { color: #90A4AE; }
+.chat-send-btn {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: linear-gradient(135deg, #26A69A, #00897B);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: transform 0.15s; flex-shrink: 0;
+}
+.chat-send-btn:active { transform: scale(0.9); }
+.chat-send-btn svg { width: 18px; height: 18px; stroke: #fff; fill: none; stroke-width: 2; }
+
+/* ===== 数据页 ===== */
+.data-status-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; margin: 4px 0 14px;
+  background: rgba(255,255,255,0.65);
+  backdrop-filter: blur(16px);
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.7);
+}
+.dsb-location { flex: 1; min-width: 0; }
+.dsb-location .dsb-title { font-size: 13px; font-weight: 600; color: #263238; display: flex; align-items: center; gap: 5px; }
+.dsb-location .dsb-desc { font-size: 11px; color: #607D8B; margin-top: 2px; }
+.dsb-device { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.dsb-device-icon {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: rgba(255,255,255,0.7);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; border: 1px solid rgba(255,255,255,0.8);
+}
+.dsb-device-icon img {
+  width: 100%; height: 100%; object-fit: cover;
+  mix-blend-mode: multiply;
+}
+.dsb-battery { font-size: 11px; font-weight: 600; color: #00897B; }
+
+/* 异常记录 */
+.anomaly-stats { display: flex; gap: 8px; margin-bottom: 12px; }
+.anomaly-stat { flex: 1; text-align: center; padding: 10px; border-radius: 12px; }
+.anomaly-stat .as-val { font-size: 18px; font-weight: 700; }
+.anomaly-stat .as-label { font-size: 10px; margin-top: 2px; color: #78909C; }
+.anomaly-item {
+  display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 12px; margin-bottom: 8px;
+  cursor: pointer; transition: all 0.15s;
+}
+.anomaly-item:active { transform: scale(0.98); }
+.anomaly-item:last-child { margin-bottom: 0; }
+.anomaly-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.anomaly-info { flex: 1; min-width: 0; }
+.anomaly-name { font-size: 12px; font-weight: 600; color: #263238; }
+.anomaly-desc { font-size: 10px; color: #78909C; margin-top: 2px; }
+.anomaly-expand {
+  max-height: 0; overflow: hidden; transition: max-height 0.3s ease;
+  margin-top: 0;
+}
+.anomaly-expand.show { max-height: 300px; margin-top: 10px; }
+.anomaly-expand-content {
+  padding: 10px 12px; background: rgba(255,255,255,0.6);
+  border-radius: 10px; font-size: 12px; color: #455A64; line-height: 1.6;
+}
+
+/* 时间线 */
+.timeline-item { display: flex; gap: 12px; padding: 8px 0; position: relative; }
+.timeline-item:not(:last-child)::after {
+  content: ''; position: absolute; left: 7px; top: 28px; bottom: -4px;
+  width: 2px; background: rgba(38,166,154,0.15);
+}
+.timeline-dot { width: 16px; height: 16px; border-radius: 50%; background: #26A69A; flex-shrink: 0; margin-top: 2px; border: 3px solid rgba(255,255,255,0.8); }
+.timeline-dot.gray { background: #B0BEC5; border-color: rgba(255,255,255,0.8); }
+.timeline-dot.green { background: #66BB6A; border-color: #E8F5E9; }
+.timeline-content { flex: 1; }
+.timeline-time { font-size: 11px; color: #78909C; }
+.timeline-text { font-size: 13px; color: #263238; margin-top: 2px; }
+
+/* 报告卡片 */
+.report-card {
+  background: rgba(255,255,255,0.5);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-radius: 24px;
+  padding: 16px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(255,255,255,0.65);
+  box-shadow: 0 8px 32px rgba(38,166,154,0.06);
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+.report-card:active { transform: scale(0.98); }
+.report-card .rc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.report-card .rc-title { font-size: 15px; font-weight: 600; color: #263238; display: flex; align-items: center; gap: 6px; }
+.report-card .rc-date { font-size: 11px; color: #78909C; }
+.report-card .rc-summary { font-size: 12px; color: #455A64; line-height: 1.6; }
+.report-card .rc-score-row { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(38,166,154,0.2); }
+.rc-score { font-size: 24px; font-weight: 800; color: #00897B; }
+.rc-score-label { font-size: 11px; color: #78909C; }
+.rc-trend { font-size: 12px; font-weight: 600; }
+
+.daily-card { border-left: 4px solid #29B6F6; }
+.weekly-card { border-left: 4px solid #26A69A; background: linear-gradient(135deg, rgba(224,242,241,0.8) 0%, rgba(255,255,255,0.75) 100%); }
+.weekly-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.wm-item { background: rgba(255,255,255,0.8); border-radius: 10px; padding: 8px 10px; border: 1px solid rgba(38,166,154,0.15); }
+.wm-label { font-size: 10px; color: #607D8B; }
+.wm-val { font-size: 16px; font-weight: 700; color: #004D40; margin-top: 2px; }
+.wm-val .delta { font-size: 10px; font-weight: 400; margin-left: 4px; }
+
+/* AI建议卡片 */
+.ai-suggest-card {
+  background: linear-gradient(135deg, rgba(255,248,225,0.9) 0%, rgba(255,243,224,0.8) 100%);
+  border: 1px solid rgba(255,183,77,0.3);
+  border-radius: 20px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.ai-suggest-card .asc-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.ai-suggest-card .asc-avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #26A69A, #00897B); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ai-suggest-card .asc-title { font-size: 14px; font-weight: 600; color: #E65100; }
+.ai-suggest-card .asc-content { font-size: 12px; color: #5D4037; line-height: 1.7; }
+.ai-suggest-card .asc-action { margin-top: 12px; display: flex; gap: 8px; }
+
+/* ===== 怀旧疗法页 ===== */
+.therapy-header {
+  background: linear-gradient(135deg, rgba(38,166,154,0.15) 0%, rgba(0,137,123,0.08) 100%);
+  margin: 0 -16px 16px;
+  padding: 16px 20px 18px;
+  border-radius: 0 0 24px 24px;
+}
+.therapy-header .th-title { font-size: 18px; font-weight: 700; color: #004D40; margin-bottom: 4px; }
+.therapy-header .th-desc { font-size: 12px; color: #00695C; line-height: 1.5; opacity: 0.8; }
+
+/* AI疗法判断 */
+.ai-judge-card {
+  background: rgba(255,255,255,0.8);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 16px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(255,255,255,0.7);
+  box-shadow: 0 4px 20px rgba(38,166,154,0.08);
+}
+.ai-judge-card .aj-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.ai-judge-card .aj-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #26A69A, #00897B); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ai-judge-card .aj-name { font-size: 13px; font-weight: 600; color: #00695C; }
+.ai-judge-card .aj-time { font-size: 10px; color: #90A4AE; margin-left: auto; }
+.ai-judge-card .aj-content { font-size: 13px; color: #37474F; line-height: 1.7; }
+.ai-judge-card .aj-task {
+  margin-top: 10px; padding: 12px; background: linear-gradient(135deg, #E0F2F1, #B2DFDB);
+  border-radius: 12px; border: 1px solid rgba(38,166,154,0.2);
+}
+.aj-task .aj-task-title { font-size: 12px; font-weight: 600; color: #004D40; margin-bottom: 4px; }
+.aj-task .aj-task-desc { font-size: 11px; color: #00695C; line-height: 1.5; margin-bottom: 10px; }
+.aj-task .aj-push-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 7px 16px; border-radius: 16px;
+  background: linear-gradient(135deg, #26A69A, #00897B);
+  color: #fff; font-size: 12px; font-weight: 600;
+  cursor: pointer; border: none; transition: transform 0.15s;
+}
+.aj-push-btn:active { transform: scale(0.95); }
+.ai-judge-card .aj-tags { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+
+/* 家人输入记忆 */
+.memory-section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.memory-add-btn {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.9);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.15s;
+}
+.memory-add-btn:active { transform: scale(0.9); background: rgba(255,255,255,0.95); }
+.memory-add-btn svg { width: 18px; height: 18px; stroke: #00897B; fill: none; stroke-width: 2.2; }
+
+.memory-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.memory-card {
+  background: rgba(255,255,255,0.8); border-radius: 16px; overflow: hidden; cursor: pointer;
+  box-shadow: 0 2px 12px rgba(38,166,154,0.08); transition: transform 0.15s;
+  border: 1px solid rgba(255,255,255,0.6);
+}
+.memory-card:active { transform: scale(0.96); }
+.memory-cover {
+  height: 90px; display: flex; align-items: center; justify-content: center;
+  position: relative;
+}
+.memory-cover .cover-tag {
+  position: absolute; top: 8px; left: 8px; padding: 2px 8px;
+  border-radius: 10px; font-size: 10px; font-weight: 600; color: #fff;
+}
+.memory-info { padding: 10px; }
+.memory-info .title { font-size: 13px; font-weight: 600; color: #263238; }
+.memory-info .meta { font-size: 11px; color: #78909C; margin-top: 3px; }
+
+/* 疗法反馈 */
+.push-item {
+  display: flex; align-items: center; gap: 12px; padding: 10px 0;
+  border-bottom: 1px solid rgba(38,166,154,0.1);
+}
+.push-item:last-child { border-bottom: none; }
+.push-info { flex: 1; }
+.push-name { font-size: 13px; font-weight: 600; color: #263238; }
+.push-time { font-size: 11px; color: #78909C; margin-top: 2px; }
+.push-reaction { font-size: 11px; font-weight: 600; }
+
+/* 生命故事书 */
+.story-book {
+  background: linear-gradient(135deg, #8D6E63 0%, #A1887F 100%);
+  border-radius: 20px; padding: 16px; color: #fff; margin-bottom: 12px;
+  cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+  box-shadow: 0 4px 20px rgba(141,110,99,0.2);
+  transition: transform 0.15s;
+}
+.story-book:active { transform: scale(0.98); }
+.story-book .book-title { font-size: 15px; font-weight: 700; }
+.story-book .book-desc { font-size: 11px; opacity: 0.85; margin-top: 4px; }
+.story-book .book-icon { width: 44px; height: 44px; border-radius: 12px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; }
+
+/* ===== 我的页 ===== */
+.profile-header {
+  display: flex; align-items: center; gap: 14px; padding: 8px 0 18px;
+}
+.profile-avatar {
+  width: 60px; height: 60px; border-radius: 50%;
+  background: linear-gradient(135deg, #26A69A, #00897B);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; font-weight: 700; color: #fff;
+}
+.profile-info .name { font-size: 18px; font-weight: 700; color: #263238; }
+.profile-info .role { font-size: 12px; color: #607D8B; margin-top: 3px; }
+.settings-group { margin-bottom: 14px; }
+.settings-group .group-title { font-size: 13px; color: #607D8B; margin-bottom: 8px; padding-left: 4px; font-weight: 500; }
+.settings-list {
+  background: rgba(255,255,255,0.5);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-radius: 20px; overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.65);
+  box-shadow: 0 8px 32px rgba(38,166,154,0.06);
+}
+.setting-item {
+  display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+  border-bottom: 1px solid rgba(38,166,154,0.08); cursor: pointer;
+}
+.setting-item:last-child { border-bottom: none; }
+.setting-item:active { background: rgba(255,255,255,0.5); }
+.setting-icon {
+  width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.setting-icon svg { width: 18px; height: 18px; stroke: #fff; fill: none; stroke-width: 1.8; }
+.setting-label { flex: 1; font-size: 14px; color: #263238; }
+.setting-value { font-size: 12px; color: #78909C; }
+.setting-arrow { color: #B0BEC5; font-size: 16px; }
+
+/* ===== Tab栏 ===== */
+.tab-bar {
+  display: flex; align-items: center;
+  padding: 8px 12px 12px;
+  flex-shrink: 0;
+  gap: 8px;
+}
+.tab-bear {
+  width: 54px; height: 54px; border-radius: 50%;
+  background: linear-gradient(135deg, #26A69A, #00897B, #004D40);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0;
+  border: 2px solid rgba(255,255,255,0.85);
+  transition: transform 0.2s;
+  z-index: 5;
+  animation: bearBreathe 2.8s ease-in-out infinite;
+}
+.tab-bear:active { transform: scale(0.9); }
+.tab-bear.active { animation: bearBreatheActive 2s ease-in-out infinite; }
+@keyframes bearBreathe {
+  0%, 100% { box-shadow: 0 0 8px rgba(38,166,154,0.35), 0 0 16px rgba(38,166,154,0.15); }
+  50% { box-shadow: 0 0 22px rgba(38,166,154,0.6), 0 0 40px rgba(38,166,154,0.25); }
+}
+@keyframes bearBreatheActive {
+  0%, 100% { box-shadow: 0 0 12px rgba(38,166,154,0.5), 0 0 28px rgba(38,166,154,0.3), inset 0 0 8px rgba(255,255,255,0.2); }
+  50% { box-shadow: 0 0 30px rgba(38,166,154,0.85), 0 0 52px rgba(38,166,154,0.4), inset 0 0 12px rgba(255,255,255,0.3); }
+}
+
+.tab-pill {
+  flex: 1; display: flex; justify-content: space-around; align-items: center;
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(20px);
+  border-radius: 24px;
+  padding: 8px 4px;
+  border: 1px solid rgba(255,255,255,0.8);
+  box-shadow: 0 4px 16px rgba(38,166,154,0.1);
+}
+.tab-item {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  cursor: pointer; padding: 4px 10px; border-radius: 14px;
+  transition: all 0.2s;
+}
+.tab-item svg { width: 22px; height: 22px; stroke: #90A4AE; fill: none; stroke-width: 1.8; transition: all 0.2s; }
+.tab-item span { font-size: 10px; color: #90A4AE; font-weight: 500; transition: all 0.2s; }
+.tab-item.active svg { stroke: #00897B; }
+.tab-item.active span { color: #00897B; font-weight: 600; }
+.tab-item.active { background: rgba(38,166,154,0.12); }
+.tab-item:active { transform: scale(0.92); }
+
+/* ===== 页面 ===== */
+.page { display: none; padding: 0 16px 20px; }
+.page.active { display: block; animation: fadeIn 0.25s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ===== 模态框 ===== */
+.modal-overlay {
+  position: absolute; inset: 0; background: rgba(0,0,0,0.4);
+  display: none; align-items: flex-end; justify-content: center; z-index: 100;
+  border-radius: 34px;
+}
+.modal-overlay.show { display: flex; animation: fadeIn 0.2s; }
+.modal-content {
+  background: #F0F9F8; width: 100%; border-radius: 24px 24px 0 0;
+  padding: 20px 16px 30px; max-height: 80%; overflow-y: auto;
+  animation: slideUp 0.3s ease;
+}
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.modal-handle { width: 40px; height: 4px; background: #B0BEC5; border-radius: 2px; margin: 0 auto 16px; }
+.modal-title { font-size: 18px; font-weight: 700; color: #263238; margin-bottom: 14px; text-align: center; }
+.modal-close { position: absolute; top: 16px; right: 16px; width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.8); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; color: #78909C; }
+
+.detail-section { margin-bottom: 16px; }
+.detail-section .ds-title { font-size: 14px; font-weight: 600; color: #263238; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.detail-card { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 8px; }
+.detail-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; }
+.detail-row .dr-label { color: #607D8B; }
+.detail-row .dr-value { color: #263238; font-weight: 500; }
+
+/* ===== Toast ===== */
+.toast {
+  position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
+  background: rgba(38,50,56,0.9); color: #fff; padding: 10px 20px;
+  border-radius: 20px; font-size: 13px; z-index: 300; opacity: 0;
+  transition: opacity 0.3s; pointer-events: none; white-space: nowrap;
+}
+.toast.show { opacity: 1; }
+
+/* ===== P00紧急 ===== */
+#p00Push {
+  position:absolute;top:-100px;left:12px;right:12px;
+  background:linear-gradient(135deg,#E53935,#C62828);
+  border-radius:16px;padding:16px;color:#fff;z-index:300;
+  box-shadow:0 8px 30px rgba(229,57,53,0.4);transition:top 0.4s ease;
+  display:flex;align-items:center;gap:12px;
+}
+#p00Push .p00-icon {
+  width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.2);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  animation:pulse 1s infinite;
+}
+@keyframes pulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.1);} }
+#p00Call {
+  position:absolute;inset:0;
+  background:linear-gradient(180deg,#1a1a2e 0%,#16213e 100%);
+  z-index:9999;display:none;flex-direction:column;align-items:center;justify-content:center;
+  border-radius:34px;overflow:hidden;
+}
+#p00Call .call-avatar {
+  width:100px;height:100px;border-radius:50%;
+  background:linear-gradient(135deg,#26A69A,#00897B);
+  margin:0 auto 20px;display:flex;align-items:center;justify-content:center;
+  font-size:40px;font-weight:700;color:#fff;
+  box-shadow:0 0 0 8px rgba(38,166,154,0.2),0 0 0 16px rgba(38,166,154,0.1);
+  animation:ringPulse 1.5s infinite;
+}
+@keyframes ringPulse { 0%,100%{box-shadow:0 0 0 8px rgba(38,166,154,0.2),0 0 0 16px rgba(38,166,154,0.1);} 50%{box-shadow:0 0 0 12px rgba(38,166,154,0.3),0 0 0 24px rgba(38,166,154,0.15);} }
+
+/* 上传记忆网格 */
+.upload-grid { display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px; }
+.upload-item {
+  padding:20px;background:rgba(255,255,255,0.8);border-radius:16px;
+  text-align:center;cursor:pointer;border:1px solid rgba(255,255,255,0.7);
+  transition:all 0.15s;
+}
+.upload-item:active { transform:scale(0.96); background:rgba(255,255,255,0.95); }
+.upload-item .ui-icon { font-size:32px;margin-bottom:8px; }
+.upload-item .ui-title { font-size:13px;font-weight:600;color:#263238; }
+.upload-item .ui-desc { font-size:10px;color:#78909C;margin-top:3px; }
+</style>
+</head>
+<body>
+
+<!-- Lucide SVG 图标库 -->
+<svg width="0" height="0" style="position:absolute" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<symbol id="i-map-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
+<symbol id="i-battery" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="10" x="2" y="7" rx="2" ry="2"/><line x1="22" x2="22" y1="11" y2="13"/><line x1="6" x2="6" y1="10" y2="14"/><line x1="10" x2="10" y1="10" y2="14"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></symbol>
+<symbol id="i-file-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+<symbol id="i-bar-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="20" y2="10"/><line x1="18" x2="18" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="16"/></symbol>
+<symbol id="i-lightbulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></symbol>
+<symbol id="i-trending-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></symbol>
+<symbol id="i-brain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/></symbol>
+<symbol id="i-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+<symbol id="i-book-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></symbol>
+<symbol id="i-sparkles" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+<symbol id="i-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+<symbol id="i-pencil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></symbol>
+<symbol id="i-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
+<symbol id="i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></symbol>
+<symbol id="i-video" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></symbol>
+<symbol id="i-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></symbol>
+<symbol id="i-circle-dot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="1"/></symbol>
+<symbol id="i-image" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></symbol>
+<symbol id="i-music" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></symbol>
+<symbol id="i-cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></symbol>
+<symbol id="i-activity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></symbol>
+<symbol id="i-chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+<symbol id="i-heart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
+<symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></symbol>
+<symbol id="i-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></symbol>
+<symbol id="i-pill" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></symbol>
+<symbol id="i-crown" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+<symbol id="i-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></symbol>
+<symbol id="i-navigation" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></symbol>
+<symbol id="i-zap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></symbol>
+<symbol id="i-message-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></symbol>
+<symbol id="i-help-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></symbol>
+<symbol id="i-credit-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></symbol>
+<symbol id="i-smartphone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></symbol>
+<symbol id="i-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></symbol>
+</defs>
+</svg>
+<!-- 小熊SVG -->
+<svg width="0" height="0" style="position:absolute"><symbol id="bear-face" viewBox="0 0 64 64"><circle cx="17" cy="15" r="8.5" fill="#6D4C41"/><circle cx="47" cy="15" r="8.5" fill="#6D4C41"/><circle cx="17" cy="15" r="4.5" fill="#D7CCC8"/><circle cx="47" cy="15" r="4.5" fill="#D7CCC8"/><ellipse cx="32" cy="37" rx="19" ry="17" fill="#8D6E63"/><ellipse cx="32" cy="41" rx="11.5" ry="9.5" fill="#EFEBE9"/><circle cx="25" cy="34" r="2.3" fill="#3E2723"/><circle cx="39" cy="34" r="2.3" fill="#3E2723"/><ellipse cx="32" cy="39.5" rx="2.8" ry="1.8" fill="#3E2723"/><path d="M28.5 42.5 Q32 45.5 35.5 42.5" stroke="#3E2723" stroke-width="1.4" fill="none" stroke-linecap="round"/></symbol></svg>
+
+<div class="phone-frame">
+  <div class="phone-screen">
+    <!-- 状态栏 -->
+    <div class="status-bar">
+      <span>9:41</span>
+      <div class="right">
+        <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx="0.5"/><rect x="4.5" y="5" width="3" height="7" rx="0.5"/><rect x="9" y="2" width="3" height="10" rx="0.5"/><rect x="13.5" y="0" width="2.5" height="12" rx="0.5"/></svg>
+        <svg width="22" height="12" viewBox="0 0 22 12" fill="none" stroke="currentColor" stroke-width="1"><rect x="0.5" y="0.5" width="18" height="11" rx="2.5"/><rect x="2" y="2" width="14" height="8" rx="1" fill="currentColor" stroke="none"/><rect x="19.5" y="3.5" width="2" height="5" rx="1" fill="currentColor" stroke="none"/></svg>
+      </div>
+    </div>
+
+    <div class="app-content" id="appContent">
+
+      <!-- ===== 页面：AI聊天首页 ===== -->
+      <div class="page active" id="page-chat">
+        <div class="chat-home">
+          <div class="chat-home-top">
+            <div class="top-icon-btn" onclick="showToast('设置')">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </div>
+            <div style="font-size:15px;font-weight:600;color:#263238;">Memora AI</div>
+            <div class="top-icon-btn" onclick="showToast('编辑')">
+              <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </div>
+          </div>
+
+          <!-- 对话记录 -->
+          <div class="chat-messages" id="chatMessages">
+            <!-- 小熊欢迎消息 -->
+            <div class="msg-row bear">
+              <div class="msg-avatar"><img src="assets/bear-logo.jpeg" alt="Memora"></div>
+              <div>
+                <div class="msg-bubble">你好小芳！我是Memora小熊🐻 今天爸爸的状态还不错，上午去颐和园散了步。有什么我可以帮你的吗？</div>
+                <div class="msg-time">09:41</div>
+              </div>
+            </div>
+
+            <!-- Hint卡片 -->
+            <div class="hint-card">
+              <div class="hint-title"><svg width="14" height="14"><use href="#i-sparkles"/></svg> 你可以问我</div>
+              <div class="hint-list">
+                <div class="hint-item" onclick="sendHint('爸爸今天的记忆状态怎么样？')"><span class="hint-num">1</span>爸爸今天的记忆状态怎么样？</div>
+                <div class="hint-item" onclick="sendHint('最近有没有需要注意的异常？')"><span class="hint-num">2</span>最近有没有需要注意的异常？</div>
+                <div class="hint-item" onclick="sendHint('推荐一个适合爸爸的怀旧疗法')"><span class="hint-num">3</span>推荐一个适合爸爸的怀旧疗法</div>
+                <div class="hint-item" onclick="sendHint('怎么帮爸爸更好地记住家人？')"><span class="hint-num">4</span>怎么帮爸爸更好地记住家人？</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 常用功能胶囊 -->
+          <div class="func-chips">
+            <div class="func-chip" onclick="useScenario('分析爸爸的记忆数据')"><svg><use href="#i-bar-chart"/></svg>分析爸爸的记忆数据</div>
+            <div class="func-chip" onclick="useScenario('推荐怀旧疗法方案')"><svg><use href="#i-sparkles"/></svg>推荐怀旧疗法方案</div>
+            <div class="func-chip" onclick="useScenario('解答照护相关问题')"><svg><use href="#i-message-circle"/></svg>解答照护相关问题</div>
+          </div>
+
+          <!-- 输入框 -->
+          <div class="chat-input-bar">
+            <input type="text" id="homeChatInput" placeholder="和小熊说点什么..." onkeypress="handleHomeKeypress(event)">
+            <div class="chat-send-btn" onclick="sendHomeMessage()">
+              <svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 页面：数据 ===== -->
+      <div class="page" id="page-data">
+        <!-- 透明状态栏 -->
+        <div class="data-status-bar">
+          <div class="dsb-location">
+            <div class="dsb-title"><svg width="14" height="14" style="color:#00897B;vertical-align:-2px"><use href="#i-map-pin"/></svg> 王建国 · 爸爸</div>
+            <div class="dsb-desc">10分钟前在颐和园散步 · 天气晴朗 26°C · 适宜出行</div>
+          </div>
+          <div class="dsb-device">
+            <div class="dsb-device-icon" title="Memora智能胸针">
+              <img src="assets/brooch-product.png" alt="智能胸针">
+            </div>
+            <div class="dsb-battery">78%</div>
+          </div>
+        </div>
+
+        <!-- 异常记录 -->
+        <div class="glass-card">
+          <div class="card-title">异常记录 <span class="more">今日 4条 ›</span></div>
+          <div class="anomaly-stats">
+            <div class="anomaly-stat" style="background:#FFEBEE;"><div class="as-val" style="color:#E53935;">1</div><div class="as-label">紧急</div></div>
+            <div class="anomaly-stat" style="background:#FFF3E0;"><div class="as-val" style="color:#FB8C00;">2</div><div class="as-label">高</div></div>
+            <div class="anomaly-stat" style="background:#FFFDE7;"><div class="as-val" style="color:#F9A825;">1</div><div class="as-label">中</div></div>
+          </div>
+          <!-- 紧急：点击触发紧急呼叫交互 -->
+          <div class="anomaly-item" style="background:#FFEBEE;border-left:4px solid #E53935;" onclick="triggerP00Alert()">
+            <div class="anomaly-dot" style="background:#E53935;"></div>
+            <div class="anomaly-info">
+              <div class="anomaly-name">跌倒检测 <span class="tag tag-red" style="margin-left:4px;">紧急</span></div>
+              <div class="anomaly-desc">今天14:32 · 客厅检测到跌倒 · 已触发SOS</div>
+            </div>
+            <span style="font-size:10px;color:#E53935;font-weight:600;flex-shrink:0;">点击查看 ›</span>
+          </div>
+          <!-- 高：点击展开详情 -->
+          <div class="anomaly-item" style="background:#FFF3E0;border-left:4px solid #FB8C00;" onclick="toggleAnomaly(this)">
+            <div class="anomaly-dot" style="background:#FB8C00;"></div>
+            <div class="anomaly-info">
+              <div class="anomaly-name">重复提问频率上升 <span class="tag tag-orange" style="margin-left:4px;">高</span></div>
+              <div class="anomaly-desc">今天14:30 · 同一问题问5次</div>
+            </div>
+          </div>
+          <div class="anomaly-expand"><div class="anomaly-expand-content">今天14:30，爸爸连续5次询问"小芳是谁"，较昨日增加2次。AI已通过记忆卡片辅助回答。建议：增加家庭照片记忆卡片的推送频率，尤其在傍晚时段。</div></div>
+          <!-- 高 -->
+          <div class="anomaly-item" style="background:#FFF3E0;border-left:4px solid #FB8C00;" onclick="toggleAnomaly(this)">
+            <div class="anomaly-dot" style="background:#FB8C00;"></div>
+            <div class="anomaly-info">
+              <div class="anomaly-name">夜间心率偏高 <span class="tag tag-orange" style="margin-left:4px;">高</span></div>
+              <div class="anomaly-desc">昨晚03:15 · 平均98bpm，持续20分钟</div>
+            </div>
+          </div>
+          <div class="anomaly-expand"><div class="anomaly-expand-content">昨晚03:15-03:35，爸爸平均心率达到98bpm，超出正常夜间心率范围（60-80bpm）。可能与梦境或睡眠呼吸暂停有关。建议关注睡眠质量，如持续出现建议就医检查。</div></div>
+          <!-- 中 -->
+          <div class="anomaly-item" style="background:#FFFDE7;border-left:4px solid #FBC02D;" onclick="toggleAnomaly(this)">
+            <div class="anomaly-dot" style="background:#FBC02D;"></div>
+            <div class="anomaly-info">
+              <div class="anomaly-name">负面情绪检测 <span class="tag" style="background:#FFF9C4;color:#F57F17;margin-left:4px;">中</span></div>
+              <div class="anomaly-desc">今天19:00 · 语气呜咽，强烈负面情绪</div>
+            </div>
+          </div>
+          <div class="anomaly-expand"><div class="anomaly-expand-content">今天19:00，通过颈环麦克风检测到爸爸语气呜咽，伴随叹息。AI已通过音箱播放舒缓音乐并进行陪伴对话，15分钟后情绪恢复平稳。建议家人近期多陪伴沟通。</div></div>
+        </div>
+
+        <!-- 今日动态 -->
+        <div class="glass-card" onclick="openModal('timeline')">
+          <div class="card-title">今日动态 <span class="more">查看全部 ›</span></div>
+          <div class="timeline-item">
+            <div class="timeline-dot green"></div>
+            <div class="timeline-content">
+              <div class="timeline-time">09:30</div>
+              <div class="timeline-text">完成早餐，和AI聊了年轻时的工厂往事</div>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+              <div class="timeline-time">10:15</div>
+              <div class="timeline-text">出门散步，前往颐和园（常去地点）</div>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-dot gray"></div>
+            <div class="timeline-content">
+              <div class="timeline-time">11:00</div>
+              <div class="timeline-text">重复询问"小芳是谁"3次，AI已用记忆卡片回答</div>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-dot green"></div>
+            <div class="timeline-content">
+              <div class="timeline-time">12:00</div>
+              <div class="timeline-text">已服用降压药，手环确认</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 日报数据 -->
+        <div class="report-card daily-card" onclick="openModal('dailyReport')">
+          <div class="rc-header">
+            <div class="rc-title"><svg width="16" height="16" style="color:#29B6F6;vertical-align:-3px"><use href="#i-file-text"/></svg> 日报数据</div>
+            <div class="rc-date">2026.09.12 今天</div>
+          </div>
+          <div class="rc-summary">今日状态平稳，上午散步32分钟，情绪较好。重复提问较昨日减少2次，记忆唤起成功率85%。</div>
+          <div class="rc-score-row">
+            <div>
+              <div class="rc-score">82</div>
+              <div class="rc-score-label">今日综合评分</div>
+            </div>
+            <div class="rc-trend" style="color:#43A047;">较昨日 +3 ↑</div>
+          </div>
+        </div>
+
+        <!-- 周报数据 -->
+        <div class="report-card weekly-card" onclick="openModal('weeklyReport')">
+          <div class="rc-header">
+            <div class="rc-title"><svg width="16" height="16" style="color:#00897B;vertical-align:-3px"><use href="#i-bar-chart"/></svg> 周报数据</div>
+            <div class="rc-date">09.07 - 09.13</div>
+          </div>
+          <div class="rc-summary" style="color:#004D40;">短时记忆和时空定向下降最明显，重复提问集中在傍晚时段，熟悉人物识别仍保持稳定。</div>
+          <div class="weekly-metrics">
+            <div class="wm-item">
+              <div class="wm-label">记忆总分</div>
+              <div class="wm-val">69<span class="delta" style="color:#e03131;">-9</span></div>
+            </div>
+            <div class="wm-item">
+              <div class="wm-label">短时记忆</div>
+              <div class="wm-val">62<span class="delta" style="color:#e03131;">-12</span></div>
+            </div>
+            <div class="wm-item">
+              <div class="wm-label">时空定向</div>
+              <div class="wm-val">66<span class="delta" style="color:#e03131;">-10</span></div>
+            </div>
+            <div class="wm-item">
+              <div class="wm-label">人物识别</div>
+              <div class="wm-val">80<span class="delta" style="color:#f08c00;">-3</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI建议 -->
+        <div class="ai-suggest-card">
+          <div class="asc-header">
+            <div class="asc-avatar"><img src="assets/bear-logo.jpeg" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" alt="Memora"></div>
+            <div class="asc-title">Memora AI · 今日建议</div>
+          </div>
+          <div class="asc-content">
+            1. 今晚推送「全家青岛之旅」记忆卡片，配合老歌播放<br>
+            2. 明天继续安排上午户外活动，散步状态好<br>
+            3. 记忆评分持续下降，建议本周联系医生复诊<br>
+            4. 傍晚时段增加陪伴，减少重复提问焦虑
+          </div>
+          <div class="asc-action">
+            <button class="pill-btn primary" onclick="showToast('已推送记忆卡片')">立即推送记忆卡</button>
+            <button class="pill-btn" onclick="openModal('doctorRecommend')">查看就医建议</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 页面：怀旧疗法 ===== -->
+      <div class="page" id="page-therapy">
+        <div class="therapy-header">
+          <div class="th-title">怀旧疗法</div>
+          <div class="th-desc">通过唤起美好记忆延缓认知衰退<br>AI智能判断 + 家人共同输入</div>
+        </div>
+
+        <!-- Memo AI疗法判断 -->
+        <div class="ai-judge-card">
+          <div class="aj-header">
+            <div class="aj-avatar"><img src="assets/bear-logo.jpeg" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" alt="Memora"></div>
+            <div class="aj-name">Memora AI · 疗法判断</div>
+            <div class="aj-time">刚刚</div>
+          </div>
+          <div class="aj-content">爸爸最近对<strong>1980年代工作经历</strong>和<strong>家庭旅行</strong>两类记忆反应最好，讲述时情绪积极、细节丰富。建议本周重点推送这两个主题。</div>
+          <div class="aj-task">
+            <div class="aj-task-title"><svg width="13" height="13" style="vertical-align:-2px"><use href="#i-target"/></svg> 今日疗法任务</div>
+            <div class="aj-task-desc">晚上19:30推送「全家青岛之旅」记忆卡片，配合播放《大海啊故乡》，预计唤起效果最佳。</div>
+            <button class="aj-push-btn" onclick="pushTherapyTask(this)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+              立即推送给爸爸
+            </button>
+          </div>
+          <div class="aj-tags">
+            <span class="tag tag-teal">工作记忆 · 活跃</span>
+            <span class="tag tag-green">家庭旅行 · 活跃</span>
+            <span class="tag tag-gray">近期事件 · 衰退</span>
+          </div>
+        </div>
+
+        <!-- 家人输入记忆 -->
+        <div class="memory-section-header">
+          <div class="section-title" style="margin:0;">家人输入记忆</div>
+          <div class="memory-add-btn" onclick="openModal('upload')" title="添加记忆">
+            <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          </div>
+        </div>
+        <div class="memory-grid">
+          <div class="memory-card" onclick="openModal('memory1')">
+            <div class="memory-cover" style="background-image:url('assets/memory-photo.jpeg');background-size:cover;background-position:center;"><span class="cover-tag" style="background:#E8734A">1985</span></div>
+            <div class="memory-info">
+              <div class="title">在机械厂的日子</div>
+              <div class="meta">3张照片 · 1段语音</div>
+            </div>
+          </div>
+          <div class="memory-card" onclick="openModal('memory2')">
+            <div class="memory-cover" style="background-image:url('assets/memory-audio.jpeg');background-size:cover;background-position:center;"><span class="cover-tag" style="background:#66BB6A">1995</span></div>
+            <div class="memory-info">
+              <div class="title">全家青岛之旅</div>
+              <div class="meta">5张照片 · 2段视频</div>
+            </div>
+          </div>
+          <div class="memory-card" onclick="openModal('memory3')">
+            <div class="memory-cover" style="background-image:url('assets/memory-voice.jpeg');background-size:cover;background-position:center;"><span class="cover-tag" style="background:#42A5F5">2008</span></div>
+            <div class="memory-info">
+              <div class="title">小芳考上大学</div>
+              <div class="meta">2张照片 · 1段语音</div>
+            </div>
+          </div>
+          <div class="memory-card" onclick="openModal('memory4')">
+            <div class="memory-cover" style="background-image:url('assets/memory-cloud.jpeg');background-size:cover;background-position:center;"><span class="cover-tag" style="background:#8E24AA">2023</span></div>
+            <div class="memory-info">
+              <div class="title">孙子小明出生</div>
+              <div class="meta">8张照片 · 3段视频</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 疗法反馈记录 -->
+        <div class="glass-card" onclick="openModal('therapyRecords')">
+          <div class="card-title">疗法反馈记录 <span class="more">全部 ›</span></div>
+          <div class="push-item">
+            <div class="push-info">
+              <div class="push-name">全家福 · 2020春节</div>
+              <div class="push-time">昨天 19:30 推送</div>
+            </div>
+            <div class="push-reaction" style="color:#43A047;">爸爸笑了</div>
+          </div>
+          <div class="push-item">
+            <div class="push-info">
+              <div class="push-name">老战友合影 · 1978</div>
+              <div class="push-time">3天前 推送</div>
+            </div>
+            <div class="push-reaction" style="color:#FB8C00;">问了更多</div>
+          </div>
+          <div class="push-item">
+            <div class="push-info">
+              <div class="push-name">沈阳机械厂 · 1985</div>
+              <div class="push-time">5天前 推送</div>
+            </div>
+            <div class="push-reaction" style="color:#43A047;">讲了15分钟</div>
+          </div>
+        </div>
+
+        <!-- 爸爸的生命故事书 -->
+        <div class="story-book" onclick="openModal('storybookLock')">
+          <div>
+            <div class="book-title"><svg width="16" height="16" style="vertical-align:-3px"><use href="#i-book-open"/></svg> 爸爸的生命故事书</div>
+            <div class="book-desc">已整理 128 段记忆 · 8 个人生阶段 · Pro专属</div>
+          </div>
+          <div class="book-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div>
+        </div>
+      </div>
+
+      <!-- ===== 页面：我的 ===== -->
+      <div class="page" id="page-me">
+        <div class="profile-header">
+          <div class="profile-avatar">芳</div>
+          <div class="profile-info">
+            <div class="name">王小芳</div>
+            <div class="role">王建国的女儿 · 家庭管理员</div>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <div class="group-title">我的家人</div>
+          <div class="settings-list">
+            <div class="setting-item" onclick="openModal('careRecipient')">
+              <div class="setting-icon" style="background:linear-gradient(135deg,#26A69A,#00897B)"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+              <div class="setting-label">被照护人</div>
+              <div class="setting-value">王建国</div>
+              <span class="setting-arrow">›</span>
+            </div>
+            <div class="setting-item" onclick="openModal('familyMembers')">
+              <div class="setting-icon" style="background:linear-gradient(135deg,#42A5F5,#1E88E5)"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+              <div class="setting-label">家庭成员</div>
+              <div class="setting-value">3人共享</div>
+              <span class="setting-arrow">›</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <div class="group-title">设备管理</div>
+          <div class="settings-list">
+            <div class="setting-item" onclick="openModal('deviceBrooch')">
+              <div class="setting-icon" style="background:linear-gradient(135deg,#26A69A,#00897B)"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg></div>
+              <div class="setting-label">智能胸针</div>
+              <div class="setting-value">电量 78%</div>
+              <span class="setting-arrow">›</span>
+            </div>
+            <div class="setting-item" onclick="openModal('deviceRing')">
+              <div class="setting-icon" style="background:linear-gradient(135deg,#AB47BC,#7B1FA2)"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><circle cx="12" cy="14" r="6"/><path d="M9 5l3-2 3 2"/></svg></div>
+              <div class="setting-label">健康戒指</div>
+              <div class="setting-value">心率 72bpm</div>
+              <span class="setting-arrow">›</span>
+            </div>
+            <div class="setting-item" onclick="openModal('deviceCamera')">
+              <div class="setting-icon" style="background:linear-gradient(135deg,#42A5F5,#1E88E5)"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg></div>
+              <div class="setting-label">客厅摄像头</div>
+              <div class="setting-value">在线 · 1080P</div>
+              <span class="setting-arrow">›</span>
+            </div>
+            <div class="setting-item" onclick="showToast('扫描添加新设备')">
+              <div class="setting-icon" style="background:#90A4AE"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg></div>
+              <div class="setting-label">添加设备</div>
+              <span class="setting-arrow">›</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <div class="group-title">安全与提醒</div>
+          <div class="settings-list">
+            <div class="setting-item" onclick="openModal('fenceSetting')">
+              <div class="setting-icon" style="background:linear-gradient(135deg,#66BB6A,#43A047)"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+              <div class="setting-label">电子围栏</div>
+              <div class="setting-value">已设2个区域</div>
+              <span class="setting-arrow">›</span>
+            </div>
+            <div class="setting-item" onclick="openModal('sosSetting')">
+              <div class="setting-icon" style="background:linear-gradient(135deg,#EF5350,#E53935)"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg></div>
+              <div class="setting-label">SOS紧急联系</div>
+              <div class="setting-value">3位联系人</div>
+              <span class="setting-arrow">›</span>
+            </div>
+            <div class="setting-item" onclick="openModal('medicineSetting')">
+              <div class="setting-icon" style="background:linear-gradient(135deg,#42A5F5,#1E88E5)"><svg viewBox="0 0 24 24"><path d="M10.5 20.5a7 7 0 0 1-9.9-9.9l9.9-9.9a7 7 0 0 1 9.9 9.9z"/><path d="M8.5 8.5l7 7"/></svg></div>
+              <div class="setting-label">用药与复诊提醒</div>
+              <div class="setting-value">3种药 · 2次/日</div>
+              <span class="setting-arrow">›</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <div class="group-title">订阅与服务</div>
+          <div class="settings-list">
+            <div class="setting-item" onclick="openModal('subscription')">
+              <div class="setting-icon" style="background:linear-gradient(135deg,#FFD54F,#FFA000)"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div>
+              <div class="setting-label">Memora Pro会员</div>
+              <div class="setting-value">有效期至 2027.03</div>
+              <span class="setting-arrow">›</span>
+            </div>
+            <div class="setting-item" onclick="showToast('隐私设置')">
+              <div class="setting-icon" style="background:#78909C"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+              <div class="setting-label">隐私与数据</div>
+              <span class="setting-arrow">›</span>
+            </div>
+            <div class="setting-item" onclick="showToast('帮助中心')">
+              <div class="setting-icon" style="background:#90A4AE"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/></svg></div>
+              <div class="setting-label">帮助与客服</div>
+              <span class="setting-arrow">›</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 底部Tab栏 -->
+    <div class="tab-bar">
+      <div class="tab-bear active" id="tabBear" onclick="switchTab('chat')"><img src="assets/bear-logo.jpeg" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" alt="Memora"></div>
+      <div class="tab-pill">
+        <div class="tab-item" onclick="switchTab('data')">
+          <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-5"/></svg>
+          <span>数据</span>
+        </div>
+        <div class="tab-item" onclick="switchTab('therapy')">
+          <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          <span>怀旧疗法</span>
+        </div>
+        <div class="tab-item" onclick="switchTab('me')">
+          <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>我的</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 模态框 -->
+    <div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+      <div class="modal-content" onclick="event.stopPropagation()">
+        <div class="modal-handle"></div>
+        <div class="modal-close" onclick="closeModal()">×</div>
+        <div id="modalBody"></div>
+      </div>
+    </div>
+
+    <!-- P00 紧急push -->
+    <div id="p00Push">
+      <div class="p00-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:15px;font-weight:700;">紧急警报：检测到跌倒</div>
+        <div style="font-size:12px;opacity:0.9;margin-top:2px;">王建国 · 客厅 · 14:32 · 已触发SOS</div>
+      </div>
+    </div>
+
+    <!-- P00 紧急呼叫全屏 -->
+    <div id="p00Call">
+      <div style="text-align:center;color:#fff;">
+        <div style="font-size:12px;opacity:0.6;margin-bottom:20px;letter-spacing:2px;">MEMORA SOS 紧急呼叫</div>
+        <div class="call-avatar">芳</div>
+        <div style="font-size:22px;font-weight:700;margin-bottom:6px;">王小芳</div>
+        <div style="font-size:14px;opacity:0.7;margin-bottom:4px;">女儿 · 第一紧急联系人</div>
+        <div id="callStatus" style="font-size:13px;color:#66BB6A;margin-top:16px;">正在呼叫...</div>
+        <div style="display:flex;gap:40px;margin-top:50px;justify-content:center;">
+          <div onclick="endP00Call()" style="width:64px;height:64px;border-radius:50%;background:#E53935;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 20px rgba(229,57,53,0.4);overflow:hidden;">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" style="transform:rotate(135deg);display:block;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          </div>
+        </div>
+        <div style="font-size:11px;opacity:0.4;margin-top:20px;">点击挂断结束模拟</div>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+  </div>
+</div>
+
+<script>
+function switchTab(tab) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + tab).classList.add('active');
+  const bear = document.getElementById('tabBear');
+  if (tab === 'chat') {
+    bear.classList.add('active');
+  } else {
+    bear.classList.remove('active');
+    const tabIndex = {data:0, therapy:1, me:2};
+    document.querySelectorAll('.tab-pill .tab-item')[tabIndex[tab]].classList.add('active');
+  }
+  document.getElementById('appContent').scrollTop = 0;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function openModal(type) {
+  const body = document.getElementById('modalBody');
+  body.innerHTML = modalContents[type] || '<div class="modal-title">功能开发中</div><p style="text-align:center;color:#607D8B;font-size:13px;">该功能正在开发中，敬请期待</p>';
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function closeModal(e) {
+  if (e && e.target !== document.getElementById('modalOverlay')) return;
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+
+// 异常记录展开/收起
+function toggleAnomaly(el) {
+  const expand = el.nextElementSibling;
+  if (expand && expand.classList.contains('anomaly-expand')) {
+    expand.classList.toggle('show');
+  }
+}
+
+// 推送疗法任务
+function pushTherapyTask(btn) {
+  btn.textContent = '✓ 已推送';
+  btn.style.background = 'linear-gradient(135deg,#66BB6A,#43A047)';
+  showToast('记忆卡片已推送到爸爸的颈环');
+  setTimeout(() => {
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg> 立即推送给爸爸';    btn.style.background = 'linear-gradient(135deg,#26A69A,#00897B)';
+  }, 3000);
+}
+
+// 首页场景胶囊
+function useScenario(text) {
+  document.getElementById('homeChatInput').value = text;
+  sendHomeMessage();
+}
+
+// Hint点击
+function sendHint(text) {
+  document.getElementById('homeChatInput').value = text;
+  sendHomeMessage();
+}
+
+function handleHomeKeypress(e) {
+  if (e.key === 'Enter') sendHomeMessage();
+}
+
+// 追加消息到对话
+function appendMessage(role, text, time) {
+  const container = document.getElementById('chatMessages');
+  const t = time || new Date().toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'});
+  let html = '';
+  if (role === 'user') {
+    html = '<div class="msg-row user"><div class="msg-avatar user-avatar">芳</div><div><div class="msg-bubble">' + text + '</div><div class="msg-time">' + t + '</div></div></div>';
+  } else {
+    html = '<div class="msg-row bear"><div class="msg-avatar"><img src="assets/bear-logo.jpeg" alt="Memora"></div><div><div class="msg-bubble">' + text + '</div><div class="msg-time">' + t + '</div></div></div>';
+  }
+  container.insertAdjacentHTML('beforeend', html);
+  container.scrollTop = container.scrollHeight;
+}
+
+// 追加打字指示器
+function appendTyping() {
+  const container = document.getElementById('chatMessages');
+  const html = '<div class="msg-row bear" id="typingRow"><div class="msg-avatar"><img src="assets/bear-logo.jpeg" alt="Memora"></div><div class="msg-bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div></div>';
+  container.insertAdjacentHTML('beforeend', html);
+  container.scrollTop = container.scrollHeight;
+}
+
+// 移除打字指示器
+function removeTyping() {
+  const el = document.getElementById('typingRow');
+  if (el) el.remove();
+}
+
+// 模拟小熊回复
+const bearReplies = [
+  '好的，我来帮你分析一下。爸爸今天的记忆唤起成功率是85%，比昨天提升了5%，整体状态平稳。短时记忆方面还有波动，建议今晚推送全家福记忆卡片。',
+  '根据最近一周的数据，爸爸对1980年代工作经历和家庭旅行两类记忆反应最好。我建议今晚19:30推送「全家青岛之旅」记忆卡片，配合播放《大海啊故乡》。',
+  '最近需要注意的是：爸爸傍晚时段重复提问有所增加（日均8次），夜间心率偶尔偏高。建议增加傍晚陪伴时间，如持续出现建议联系医生复诊。',
+  '帮助爸爸记住家人的好方法：1. 每天推送1-2张家庭照片记忆卡片；2. 拍照时说出每个人的名字和关系；3. 定期翻看家庭相册并讲述故事；4. 让爸爸参与整理老照片。需要我帮你制定一个每周记忆训练计划吗？',
+  '收到！我已经记录下来了。爸爸今天散步32分钟，情绪较好，重复提问较昨日减少2次。认知训练完成度100%，家人照片配对5/5正确。整体评分82分，状态良好。'
+];
+
+function sendHomeMessage() {
+  const input = document.getElementById('homeChatInput');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  appendMessage('user', text);
+  setTimeout(() => {
+    appendTyping();
+    setTimeout(() => {
+      removeTyping();
+      const reply = bearReplies[Math.floor(Math.random() * bearReplies.length)];
+      appendMessage('bear', reply);
+    }, 1500 + Math.random() * 1000);
+  }, 300);
+}
+
+// P00 紧急模拟
+function triggerP00Alert() {
+  const push = document.getElementById('p00Push');
+  const call = document.getElementById('p00Call');
+  const status = document.getElementById('callStatus');
+  push.style.top = '12px';
+  setTimeout(() => {
+    push.style.top = '-100px';
+    setTimeout(() => {
+      call.style.display = 'flex';
+      status.textContent = '正在呼叫...';
+      setTimeout(() => {
+        status.textContent = '已接通 · 通话中 00:03';
+        status.style.color = '#66BB6A';
+      }, 3000);
+    }, 300);
+  }, 2500);
+}
+
+function endP00Call() {
+  document.getElementById('p00Call').style.display = 'none';
+  showToast('已结束紧急呼叫模拟');
+}
+
+// ===== 模态框内容 =====
+const modalContents = {
+  timeline: '<div class="modal-title">今日动态详情</div><div class="timeline-item"><div class="timeline-dot green"></div><div class="timeline-content"><div class="timeline-time">09:30</div><div class="timeline-text">完成早餐，和AI聊了年轻时的工厂往事</div><div style="font-size:11px;color:#78909C;margin-top:4px;">AI唤起3段记忆，爸爸情绪良好</div></div></div><div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><div class="timeline-time">10:15</div><div class="timeline-text">出门散步，前往颐和园（常去地点）</div><div style="font-size:11px;color:#78909C;margin-top:4px;">步行32分钟，步数2100步</div></div></div><div class="timeline-item"><div class="timeline-dot gray"></div><div class="timeline-content"><div class="timeline-time">11:00</div><div class="timeline-text">重复询问"小芳是谁"3次</div><div style="font-size:11px;color:#E53935;margin-top:4px;">AI已用记忆卡片回答，建议关注</div></div></div><div class="timeline-item"><div class="timeline-dot green"></div><div class="timeline-content"><div class="timeline-time">12:00</div><div class="timeline-text">已服用降压药，手环确认</div></div></div><div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><div class="timeline-time">14:30</div><div class="timeline-text">完成认知训练：家人照片配对（5/5正确）</div></div></div><div class="timeline-item"><div class="timeline-dot gray"></div><div class="timeline-content"><div class="timeline-time">15:00</div><div class="timeline-text">原地徘徊约15分钟</div><div style="font-size:11px;color:#E53935;margin-top:4px;">已通过音箱引导回沙发</div></div></div>',
+
+  dailyReport: '<div class="modal-title">日报数据 · 2026.09.12</div><div class="detail-section"><div class="ds-title"><svg width="14" height="14" style="vertical-align:-2px"><use href="#i-bar-chart"/></svg> 今日概览</div><div class="detail-card"><div class="detail-row"><span class="dr-label">综合评分</span><span class="dr-value">82分（良好）</span></div><div class="detail-row"><span class="dr-label">情绪状态</span><span class="dr-value">平稳偏积极</span></div><div class="detail-row"><span class="dr-label">记忆唤起</span><span class="dr-value">成功率85%</span></div><div class="detail-row"><span class="dr-label">重复提问</span><span class="dr-value">较昨日减少2次</span></div><div class="detail-row"><span class="dr-label">户外活动</span><span class="dr-value">散步32分钟</span></div><div class="detail-row"><span class="dr-label">睡眠质量</span><span class="dr-value">6.8小时（一般）</span></div></div></div><div class="detail-section"><div class="ds-title"><svg width="14" height="14" style="vertical-align:-2px"><use href="#i-lightbulb"/></svg> AI建议</div><div class="detail-card" style="background:#FFF8E1;"><p style="font-size:13px;color:#5D4037;line-height:1.7;">1. 今晚推送全家福记忆卡片，强化家庭记忆<br>2. 明天继续安排上午户外活动<br>3. 重复提问减少，认知训练效果初显<br>4. 夜间心率偏高，关注睡眠环境</p></div></div>',
+
+  weeklyReport: '<div class="modal-title">周报数据 · 09.07-09.13</div><div class="detail-section"><div class="ds-title"><svg width="14" height="14" style="vertical-align:-2px"><use href="#i-trending-up"/></svg> 本周趋势</div><div class="detail-card"><div class="detail-row"><span class="dr-label">记忆总分</span><span class="dr-value" style="color:#e03131;">69分（-9 vs 上周）</span></div><div class="detail-row"><span class="dr-label">MMSE估算</span><span class="dr-value">24分（稳定）</span></div><div class="detail-row"><span class="dr-label">记忆唤起成功率</span><span class="dr-value">82%（+5%）</span></div><div class="detail-row"><span class="dr-label">重复提问次数</span><span class="dr-value" style="color:#e03131;">日均8次（+3次）</span></div><div class="detail-row"><span class="dr-label">异常事件</span><span class="dr-value">4次（紧急1，高2，中1）</span></div><div class="detail-row"><span class="dr-label">怀旧疗法参与</span><span class="dr-value">12次（日均1.7次）</span></div></div></div><div class="detail-section"><div class="ds-title"><svg width="14" height="14" style="vertical-align:-2px"><use href="#i-brain"/></svg> 各维度变化</div><div class="detail-card"><div class="detail-row"><span class="dr-label">短时记忆</span><span class="dr-value" style="color:#e03131;">62分 ↓ 下降明显</span></div><div class="detail-row"><span class="dr-label">时空定向</span><span class="dr-value" style="color:#e03131;">66分 ↓ 下降明显</span></div><div class="detail-row"><span class="dr-label">人物识别</span><span class="dr-value" style="color:#f08c00;">80分 ↓ 轻度下降</span></div><div class="detail-row"><span class="dr-label">事件回忆</span><span class="dr-value" style="color:#e03131;">68分 ↓ 下降</span></div></div></div><div class="detail-section"><div class="ds-title"><svg width="14" height="14" style="vertical-align:-2px"><use href="#i-target"/></svg> 下周建议</div><div class="detail-card" style="background:#E8F5E9;"><p style="font-size:13px;color:#2E7D32;line-height:1.7;">1. 增加户外散步频率至每周5次<br>2. 怀旧疗法增加「工作经历」主题推送<br>3. 关注夜间心率，建议手环持续监测<br>4. 记忆评分持续下降，建议联系医生复诊</p></div></div>',
+
+  doctorRecommend: '<div class="modal-title">AI医生建议</div><div class="detail-section"><div class="ds-title"><svg width="14" height="14" style="vertical-align:-2px;color:#E53935"><use href="#i-alert"/></svg> 风险评估</div><div class="detail-card" style="background:#FFEBEE;"><div style="font-size:14px;font-weight:600;color:#C62828;margin-bottom:8px;">认知能力下降趋势明显</div><div style="font-size:12px;color:#8B4513;line-height:1.7;">近两周记忆评分从78分降至69分，下降幅度达11.5%。短时记忆和时空定向下降最为显著，已超出正常波动范围。</div></div></div><div class="detail-section"><div class="ds-title"><svg width="14" height="14" style="vertical-align:-2px"><use href="#i-file-text"/></svg> 建议就诊</div><div class="detail-card"><div class="detail-row"><span class="dr-label">推荐科室</span><span class="dr-value">神经内科 / 记忆门诊</span></div><div class="detail-row"><span class="dr-label">建议时间</span><span class="dr-value">2周内</span></div><div class="detail-row"><span class="dr-label">携带资料</span><span class="dr-value">本月数据报告 + 近3月周报</span></div></div></div><button style="width:100%;padding:14px;border:none;border-radius:12px;background:#E53935;color:#fff;font-size:14px;font-weight:600;cursor:pointer;margin-top:8px;" onclick="closeModal();showToast(\'已为您跳转预约页面\')">立即预约医生</button>',
+
+  upload: '<div class="modal-title">输入记忆</div><div class="upload-grid"><div class="upload-item" onclick="closeModal();showToast(\'从相册选择照片/视频\')"><div class="ui-icon"><svg width="32" height="32" style="color:#42A5F5"><use href="#i-image"/></svg></div><div class="ui-title">图片/视频上传</div><div class="ui-desc">从相册选择</div></div><div class="upload-item" onclick="closeModal();showToast(\'开始录音\')"><div class="ui-icon"><svg width="32" height="32" style="color:#66BB6A"><use href="#i-mic"/></svg></div><div class="ui-title">录音上传</div><div class="ui-desc">录制语音片段</div></div><div class="upload-item" onclick="closeModal();showToast(\'开始语音记录\')"><div class="ui-icon"><svg width="32" height="32" style="color:#AB47BC"><use href="#i-message-circle"/></svg></div><div class="ui-title">语音记录上传</div><div class="ui-desc">引导爸爸讲故事</div></div><div class="upload-item" onclick="closeModal();showToast(\'从网盘导入\')"><div class="ui-icon"><svg width="32" height="32" style="color:#26A69A"><use href="#i-cloud"/></svg></div><div class="ui-title">网盘一键导入</div><div class="ui-desc">百度网盘/iCloud</div></div></div><p style="font-size:12px;color:#607D8B;text-align:center;line-height:1.6;">上传后AI会自动识别、打标签、整理成记忆卡片<br>你可以随时编辑和补充</p>',
+
+  memory1: '<div class="modal-title">在机械厂的日子</div><div style="height:160px;background:linear-gradient(135deg,#FFCC80,#FFAB91);border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;"><svg width="48" height="48" style="color:#E8734A"><use href="#i-activity"/></svg></div><p style="font-size:14px;color:#37474F;line-height:1.7;margin-bottom:12px;">1985年，爸爸在沈阳第一机械厂工作，是车间的技术骨干。那时候他每天早上6点出门，骑车40分钟到厂里，一干就是一整天。</p><div style="display:flex;gap:8px;margin-bottom:14px;"><span class="tag tag-orange">1985年</span><span class="tag tag-blue">沈阳</span><span class="tag tag-gray">工作</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"><button style="padding:12px;border:none;border-radius:10px;background:linear-gradient(135deg,#26A69A,#00897B);color:#fff;font-size:14px;font-weight:600;cursor:pointer;" onclick="showToast(\'已推送给爸爸\')">推送给爸爸</button><button style="padding:12px;border:none;border-radius:10px;background:#ECEFF1;color:#455A64;font-size:14px;cursor:pointer;" onclick="showToast(\'编辑记忆\')">编辑</button></div>',
+
+  memory2: '<div class="modal-title">全家青岛之旅</div><div style="height:160px;background:linear-gradient(135deg,#A5D6A7,#81C784);border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;"><svg width="48" height="48" style="color:#2E7D32"><use href="#i-sun"/></svg></div><p style="font-size:14px;color:#37474F;line-height:1.7;margin-bottom:12px;">1995年夏天，全家第一次去海边。小芳那年8岁，第一次看到大海，兴奋得在沙滩上跑了一下午。爸爸说那是他最开心的一个夏天。</p><div style="display:flex;gap:8px;margin-bottom:14px;"><span class="tag tag-green">1995年</span><span class="tag tag-blue">青岛</span><span class="tag tag-orange">家庭旅行</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"><button style="padding:12px;border:none;border-radius:10px;background:linear-gradient(135deg,#26A69A,#00897B);color:#fff;font-size:14px;font-weight:600;cursor:pointer;" onclick="showToast(\'已推送给爸爸\')">推送给爸爸</button><button style="padding:12px;border:none;border-radius:10px;background:#ECEFF1;color:#455A64;font-size:14px;cursor:pointer;" onclick="showToast(\'编辑记忆\')">编辑</button></div>',
+
+  memory3: '<div class="modal-title">小芳考上大学</div><div style="height:160px;background:linear-gradient(135deg,#90CAF9,#64B5F6);border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;"><svg width="48" height="48" style="color:#1565C0"><use href="#i-book-open"/></svg></div><p style="font-size:14px;color:#37474F;line-height:1.7;margin-bottom:12px;">2008年，小芳考上了深圳大学。爸爸送她到学校，帮她铺好床铺，临走时在宿舍门口站了很久。</p><div style="display:flex;gap:8px;margin-bottom:14px;"><span class="tag tag-blue">2008年</span><span class="tag tag-orange">深圳</span><span class="tag tag-green">重要时刻</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"><button style="padding:12px;border:none;border-radius:10px;background:linear-gradient(135deg,#26A69A,#00897B);color:#fff;font-size:14px;font-weight:600;cursor:pointer;" onclick="showToast(\'已推送给爸爸\')">推送给爸爸</button><button style="padding:12px;border:none;border-radius:10px;background:#ECEFF1;color:#455A64;font-size:14px;cursor:pointer;" onclick="showToast(\'编辑记忆\')">编辑</button></div>',
+
+  memory4: '<div class="modal-title">孙子小明出生</div><div style="height:160px;background:linear-gradient(135deg,#CE93D8,#BA68C8);border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;"><svg width="48" height="48" style="color:#6A1B9A"><use href="#i-heart"/></svg></div><p style="font-size:14px;color:#37474F;line-height:1.7;margin-bottom:12px;">2023年，小明出生了。爸爸第一次抱孙子的时候，手都在抖。他说，这是他这辈子最骄傲的时刻。</p><div style="display:flex;gap:8px;margin-bottom:14px;"><span class="tag" style="background:#F3E5F5;color:#8E24AA;">2023年</span><span class="tag tag-orange">深圳</span><span class="tag tag-green">家庭</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"><button style="padding:12px;border:none;border-radius:10px;background:linear-gradient(135deg,#26A69A,#00897B);color:#fff;font-size:14px;font-weight:600;cursor:pointer;" onclick="showToast(\'已推送给爸爸\')">推送给爸爸</button><button style="padding:12px;border:none;border-radius:10px;background:#ECEFF1;color:#455A64;font-size:14px;cursor:pointer;" onclick="showToast(\'编辑记忆\')">编辑</button></div>',
+
+  therapyRecords: '<div class="modal-title">疗法反馈记录</div><div class="push-item"><div class="push-info"><div class="push-name">全家福 · 2020春节</div><div class="push-time">昨天 19:30 推送</div></div><div class="push-reaction" style="color:#43A047;">爸爸笑了</div></div><div class="push-item"><div class="push-info"><div class="push-name">老战友合影 · 1978</div><div class="push-time">3天前 推送</div></div><div class="push-reaction" style="color:#FB8C00;">问了更多</div></div><div class="push-item"><div class="push-info"><div class="push-name">沈阳机械厂 · 1985</div><div class="push-time">5天前 推送</div></div><div class="push-reaction" style="color:#43A047;">讲了15分钟</div></div><div class="push-item"><div class="push-info"><div class="push-name">青岛之旅 · 1995</div><div class="push-time">1周前 推送</div></div><div class="push-reaction" style="color:#78909C;">平静看完</div></div><div class="push-item"><div class="push-info"><div class="push-name">小芳出生 · 1987</div><div class="push-time">1周前 推送</div></div><div class="push-reaction" style="color:#E53935;">哭了</div></div>',
+
+  storybookLock: '<div class="modal-title">生命故事书</div><div style="text-align:center;padding:24px 0 16px;"><div style="font-size:56px;margin-bottom:12px;display:flex;gap:8px;justify-content:center;align-items:center;"><svg width="48" height="48" style="color:#26A69A"><use href="#i-book-open"/></svg><svg width="36" height="36" style="color:#90A4AE"><use href="#i-lock"/></svg></div><div style="font-size:16px;font-weight:700;color:#263238;margin-bottom:6px;">开通 Memora Pro 解锁</div><div style="font-size:12px;color:#607D8B;line-height:1.6;margin-bottom:16px;">生命故事书将自动整理爸爸的全部记忆<br>按人生阶段编排，可打印实体书送给家人</div></div><div style="background:linear-gradient(135deg,#E0F2F1,#B2DFDB);border-radius:14px;padding:14px;margin-bottom:16px;border:1px solid rgba(38,166,154,0.2);"><div style="font-size:13px;font-weight:600;color:#004D40;margin-bottom:8px;display:flex;align-items:center;gap:6px;"><svg width="14" height="14"><use href="#i-sparkles"/></svg> Pro 专属权益</div><div style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#00695C;"><div style="display:flex;gap:8px;align-items:center;"><span style="color:#26A69A;">✦</span>生命故事书自动生成</div><div style="display:flex;gap:8px;align-items:center;"><span style="color:#26A69A;">✦</span>实体书打印服务（¥99）</div><div style="display:flex;gap:8px;align-items:center;"><span style="color:#26A69A;">✦</span>无限记忆存储空间</div><div style="display:flex;gap:8px;align-items:center;"><span style="color:#26A69A;">✦</span>认知趋势导出给医生</div></div></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;"><div style="padding:12px;border:2px solid #26A69A;border-radius:12px;text-align:center;"><div style="font-size:16px;font-weight:700;color:#26A69A;">¥29</div><div style="font-size:11px;color:#607D8B;">/月</div></div><div style="padding:12px;border:2px solid #CFD8DC;border-radius:12px;text-align:center;"><div style="font-size:16px;font-weight:700;color:#263238;">¥299</div><div style="font-size:11px;color:#607D8B;">/年</div></div><div style="padding:12px;border:2px solid #CFD8DC;border-radius:12px;text-align:center;"><div style="font-size:16px;font-weight:700;color:#263238;">¥499</div><div style="font-size:11px;color:#607D8B;">/2年</div></div></div><button style="width:100%;padding:14px;border:none;border-radius:12px;background:linear-gradient(135deg,#26A69A,#00897B);color:#fff;font-size:14px;font-weight:700;cursor:pointer;" onclick="closeModal();showToast(\'正在跳转开通页面...\')">立即开通 Pro</button><div style="text-align:center;font-size:11px;color:#90A4AE;margin-top:8px;cursor:pointer;" onclick="closeModal()">暂不开通</div>',
+
+  careRecipient: '<div class="modal-title">被照护人档案</div><div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;padding:14px;background:#E0F2F1;border-radius:14px;"><div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#26A69A,#00897B);color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;">王</div><div><div style="font-size:18px;font-weight:700;color:#263238;">王建国</div><div style="font-size:12px;color:#607D8B;margin-top:2px;">78岁 · 男 · 阿尔茨海默症轻度</div><div style="font-size:11px;color:#90A4AE;margin-top:2px;">确诊时间：2024年3月</div></div></div><div class="detail-section"><div class="ds-title"><svg width="14" height="14" style="vertical-align:-2px"><use href="#i-file-text"/></svg> 基础信息</div><div class="detail-card"><div class="detail-row"><span class="dr-label">姓名</span><span class="dr-value">王建国</span></div><div class="detail-row"><span class="dr-label">年龄</span><span class="dr-value">78岁</span></div><div class="detail-row"><span class="dr-label">性别</span><span class="dr-value">男</span></div><div class="detail-row"><span class="dr-label">身高/体重</span><span class="dr-value">172cm / 65kg</span></div><div class="detail-row"><span class="dr-label">血型</span><span class="dr-value">A型</span></div></div></div><div class="detail-section"><div class="ds-title"><svg width="14" height="14" style="vertical-align:-2px"><use href="#i-pill"/></svg> 病史与用药</div><div class="detail-card"><div class="detail-row"><span class="dr-label">确诊疾病</span><span class="dr-value">阿尔茨海默症（轻度）</span></div><div class="detail-row"><span class="dr-label">MMSE评分</span><span class="dr-value">24分</span></div><div class="detail-row"><span class="dr-label">长期用药</span><span class="dr-value">降压药、多奈哌齐</span></div><div class="detail-row"><span class="dr-label">过敏史</span><span class="dr-value">青霉素过敏</span></div></div></div>',
+
+  familyMembers: '<div class="modal-title">家庭成员</div><div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;"><div style="display:flex;align-items:center;gap:12px;padding:12px;background:#fff;border-radius:12px;"><div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#26A69A,#00897B);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;">芳</div><div style="flex:1;"><div style="font-size:14px;font-weight:600;color:#263238;">王小芳 <span style="font-size:10px;background:#E0F2F1;color:#00695C;padding:2px 6px;border-radius:4px;margin-left:6px;">管理员</span></div><div style="font-size:11px;color:#90A4AE;">女儿 · 语音已录入</div></div><span style="font-size:12px;color:#43A047;">已激活</span></div><div style="display:flex;align-items:center;gap:12px;padding:12px;background:#fff;border-radius:12px;"><div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#42A5F5,#1E88E5);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;">强</div><div style="flex:1;"><div style="font-size:14px;font-weight:600;color:#263238;">王志强</div><div style="font-size:11px;color:#90A4AE;">儿子 · 语音未录入</div></div><span style="font-size:12px;color:#FB8C00;cursor:pointer;" onclick="showToast(\'邀请儿子录入语音\')">去录入 ›</span></div><div style="display:flex;align-items:center;gap:12px;padding:12px;background:#fff;border-radius:12px;"><div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#66BB6A,#43A047);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;">秀</div><div style="flex:1;"><div style="font-size:14px;font-weight:600;color:#263238;">李秀英</div><div style="font-size:11px;color:#90A4AE;">老伴 · 语音已录入</div></div><span style="font-size:12px;color:#43A047;">已激活</span></div></div>',
+
+  deviceBrooch: '<div class="modal-title">智能胸针</div><div style="text-align:center;padding:20px 0;"><div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#26A69A,#00897B);margin:0 auto 16px;display:flex;align-items:center;justify-content:center;"><svg width="40" height="40" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg></div><div style="font-size:18px;font-weight:700;color:#263238;">Memora智能胸针 Pro</div><div style="font-size:13px;color:#607D8B;margin-top:4px;">固件 v2.3.1 · 信号良好</div></div><div class="detail-card"><div class="detail-row"><span class="dr-label">电量</span><span class="dr-value">78%（约可使用36小时）</span></div><div class="detail-row"><span class="dr-label">GPS定位</span><span class="dr-value" style="color:#43A047;">正常</span></div><div class="detail-row"><span class="dr-label">麦克风</span><span class="dr-value" style="color:#43A047;">正常</span></div><div class="detail-row"><span class="dr-label">扬声器</span><span class="dr-value" style="color:#43A047;">正常</span></div><div class="detail-row"><span class="dr-label">最后同步</span><span class="dr-value">2分钟前</span></div></div>',
+
+  deviceRing: '<div class="modal-title">健康戒指</div><div style="text-align:center;padding:20px 0;"><div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#AB47BC,#7B1FA2);margin:0 auto 16px;display:flex;align-items:center;justify-content:center;"><svg width="40" height="40" fill="none" stroke="#fff" stroke-width="1.8"><circle cx="12" cy="14" r="6"/><path d="M9 5l3-2 3 2"/></svg></div><div style="font-size:18px;font-weight:700;color:#263238;">Memora健康戒指</div><div style="font-size:13px;color:#607D8B;margin-top:4px;">固件 v1.5.0 · 佩戴中</div></div><div class="detail-card"><div class="detail-row"><span class="dr-label">当前心率</span><span class="dr-value">72 bpm（正常）</span></div><div class="detail-row"><span class="dr-label">血氧</span><span class="dr-value" style="color:#43A047;">98%</span></div><div class="detail-row"><span class="dr-label">睡眠监测</span><span class="dr-value" style="color:#43A047;">开启</span></div><div class="detail-row"><span class="dr-label">体温</span><span class="dr-value">36.5°C</span></div><div class="detail-row"><span class="dr-label">电量</span><span class="dr-value">65%（约5天）</span></div></div>',
+
+  deviceCamera: '<div class="modal-title">客厅摄像头</div><div style="text-align:center;padding:20px 0;"><div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#42A5F5,#1E88E5);margin:0 auto 16px;display:flex;align-items:center;justify-content:center;"><svg width="40" height="40" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg></div><div style="font-size:18px;font-weight:700;color:#263238;">客厅摄像头</div><div style="font-size:13px;color:#607D8B;margin-top:4px;">1080P · 夜视 · 在线</div></div><div class="detail-card"><div class="detail-row"><span class="dr-label">分辨率</span><span class="dr-value">1920×1080</span></div><div class="detail-row"><span class="dr-label">夜视模式</span><span class="dr-value" style="color:#43A047;">自动</span></div><div class="detail-row"><span class="dr-label">移动侦测</span><span class="dr-value" style="color:#43A047;">开启</span></div><div class="detail-row"><span class="dr-label">云存储</span><span class="dr-value">7天循环</span></div><div class="detail-row"><span class="dr-label">最后活动</span><span class="dr-value">5分钟前</span></div></div><button style="width:100%;padding:14px;border:none;border-radius:12px;background:linear-gradient(135deg,#42A5F5,#1E88E5);color:#fff;font-size:14px;font-weight:600;cursor:pointer;margin-top:8px;" onclick="showToast(\'正在打开实时画面...\')">查看实时画面</button>',
+
+  fenceSetting: '<div class="modal-title">电子围栏设置</div><div class="detail-section"><div class="ds-title"><svg width="14" height="14" style="vertical-align:-2px"><use href="#i-map-pin"/></svg> 已设区域（2个）</div><div class="detail-card"><div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;"><div><div style="font-size:14px;font-weight:600;color:#263238;">家</div><div style="font-size:11px;color:#90A4AE;">半径100米 · 24小时监控</div></div><span class="tag tag-green">生效中</span></div><div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid #ECEFF1;"><div><div style="font-size:14px;font-weight:600;color:#263238;">颐和园</div><div style="font-size:11px;color:#90A4AE;">半径200米 · 08:00-18:00</div></div><span class="tag tag-green">生效中</span></div></div></div>',
+
+  sosSetting: '<div class="modal-title">SOS紧急联系设置</div><div class="detail-section"><div class="ds-title"><svg width="14" height="14" style="vertical-align:-2px"><use href="#i-phone"/></svg> 紧急联系人（3位）</div><div class="detail-card"><div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;"><div><div style="font-size:14px;font-weight:600;color:#263238;">王小芳（女儿）</div><div style="font-size:11px;color:#90A4AE;">第一联系人</div></div><span class="tag tag-red">SOS</span></div><div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid #ECEFF1;"><div><div style="font-size:14px;font-weight:600;color:#263238;">王志强（儿子）</div><div style="font-size:11px;color:#90A4AE;">第二联系人</div></div><span class="tag tag-red">SOS</span></div><div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid #ECEFF1;"><div><div style="font-size:14px;font-weight:600;color:#263238;">李秀英（老伴）</div><div style="font-size:11px;color:#90A4AE;">第三联系人</div></div><span class="tag tag-red">SOS</span></div></div></div>',
+
+  medicineSetting: '<div class="modal-title">用药与复诊提醒</div><div class="detail-section"><div class="ds-title"><svg width="14" height="14" style="vertical-align:-2px"><use href="#i-pill"/></svg> 当前用药（3种）</div><div class="detail-card"><div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;"><div><div style="font-size:14px;font-weight:600;color:#263238;">氨氯地平（降压药）</div><div style="font-size:11px;color:#90A4AE;">5mg · 每日1次 · 早饭后</div></div><span class="tag tag-green">已服用</span></div><div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid #ECEFF1;"><div><div style="font-size:14px;font-weight:600;color:#263238;">多奈哌齐（认知）</div><div style="font-size:11px;color:#90A4AE;">5mg · 每日1次 · 睡前</div></div><span class="tag tag-orange">待服用</span></div><div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid #ECEFF1;"><div><div style="font-size:14px;font-weight:600;color:#263238;">阿司匹林</div><div style="font-size:11px;color:#90A4AE;">100mg · 每日1次 · 早饭后</div></div><span class="tag tag-green">已服用</span></div></div></div><div class="detail-section"><div class="ds-title"><svg width="14" height="14" style="vertical-align:-2px"><use href="#i-calendar"/></svg> 复诊提醒</div><div class="detail-card"><div class="detail-row"><span class="dr-label">下次复诊</span><span class="dr-value">2026年10月15日</span></div><div class="detail-row"><span class="dr-label">就诊科室</span><span class="dr-value">神经内科</span></div><div class="detail-row"><span class="dr-label">医生</span><span class="dr-value">张主任</span></div></div></div>',
+
+  subscription: '<div class="modal-title">Memora Pro会员</div><div style="background:linear-gradient(135deg,#FFD54F,#FFA000);border-radius:16px;padding:20px;color:#fff;margin-bottom:16px;text-align:center;"><div style="font-size:32px;margin-bottom:8px;"><svg width="32" height="32" style="color:#fff"><use href="#i-crown"/></svg></div><div style="font-size:18px;font-weight:700;">Memora Pro</div><div style="font-size:12px;opacity:0.9;margin-top:4px;">有效期至 2027年3月15日</div></div><div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;"><div style="display:flex;gap:10px;align-items:center;font-size:13px;color:#37474F;"><span style="color:#43A047;">✓</span>无限记忆存储空间</div><div style="display:flex;gap:10px;align-items:center;font-size:13px;color:#37474F;"><span style="color:#43A047;">✓</span>AI怀旧对话（无限次）</div><div style="display:flex;gap:10px;align-items:center;font-size:13px;color:#37474F;"><span style="color:#43A047;">✓</span>每日AI状态报告</div><div style="display:flex;gap:10px;align-items:center;font-size:13px;color:#37474F;"><span style="color:#43A047;">✓</span>认知趋势导出（给医生）</div><div style="display:flex;gap:10px;align-items:center;font-size:13px;color:#37474F;"><span style="color:#43A047;">✓</span>生命故事书生成与打印</div></div>'
+};
+</script>
+</body>
+</html>
